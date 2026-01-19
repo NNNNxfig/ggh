@@ -69,7 +69,6 @@ end
 
 local function updateUI()
 	local c = currentColor()
-	if preview then preview.BackgroundColor3 = c end
 	if svBox then svBox.BackgroundColor3 = Color3.fromHSV(H, 1, 1) end
 	if svCursor then svCursor.Position = UDim2.new(S, 0, 1 - V, 0) end
 	if hueCursor then hueCursor.Position = UDim2.new(0.5, 0, H, 0) end
@@ -174,48 +173,48 @@ local function buildPicker(parent)
 	close.Parent = top
 	Instance.new("UICorner", close).CornerRadius = UDim.new(0, 8)
 
-	preview = Instance.new("Frame")
-	preview.Size = UDim2.fromOffset(22, 22)
-	preview.Position = UDim2.new(1, -28, 0, 4)
-	preview.BackgroundColor3 = currentColor()
-	preview.BorderSizePixel = 0
-	preview.Parent = top
-	Instance.new("UICorner", preview).CornerRadius = UDim.new(0, 7)
-
 	makeDraggable(picker, top)
 
-	svBox = Instance.new("Frame")
-	svBox.Size = UDim2.fromOffset(160, 140)
-	svBox.Position = UDim2.new(0, 12, 0, 38)
-	svBox.BackgroundColor3 = Color3.fromHSV(H, 1, 1)
-	svBox.BorderSizePixel = 0
-	svBox.Parent = picker
-	Instance.new("UICorner", svBox).CornerRadius = UDim.new(0, 10)
+    svBox = Instance.new("Frame")
+    svBox.Size = UDim2.fromOffset(160, 140)
+    svBox.Position = UDim2.new(0, 12, 0, 38)
+    svBox.BackgroundColor3 = Color3.fromHSV(H, 1, 1)
+    svBox.BorderSizePixel = 0
+    svBox.Parent = picker
+    Instance.new("UICorner", svBox).CornerRadius = UDim.new(0, 10)
 
-	local sat = Instance.new("UIGradient")
-	sat.Rotation = 0
-	sat.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.new(1, 1, 1))
-	sat.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(1, 1)
-	})
-	sat.Parent = svBox
+    local satOverlay = Instance.new("Frame")
+    satOverlay.Size = UDim2.new(1, 0, 1, 0)
+    satOverlay.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    satOverlay.BorderSizePixel = 0
+    satOverlay.Parent = svBox
+    Instance.new("UICorner", satOverlay).CornerRadius = UDim.new(0, 10)
 
-	local valOverlay = Instance.new("Frame")
-	valOverlay.Size = UDim2.new(1, 0, 1, 0)
-	valOverlay.BackgroundColor3 = Color3.new(0, 0, 0)
-	valOverlay.BorderSizePixel = 0
-	valOverlay.Parent = svBox
-	Instance.new("UICorner", valOverlay).CornerRadius = UDim.new(0, 10)
+    local sat = Instance.new("UIGradient")
+    sat.Rotation = 0
+    sat.Color = ColorSequence.new(Color3.fromRGB(255,255,255), Color3.fromRGB(255,255,255))
+    sat.Transparency = NumberSequence.new({
+	    NumberSequenceKeypoint.new(0, 0),
+	    NumberSequenceKeypoint.new(1, 1)
+    })
+    sat.Parent = satOverlay
 
-	local val = Instance.new("UIGradient")
-	val.Rotation = 90
-	val.Color = ColorSequence.new(Color3.new(0, 0, 0), Color3.new(0, 0, 0))
-	val.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 1),
-		NumberSequenceKeypoint.new(1, 0)
-	})
-	val.Parent = valOverlay
+    local valOverlay = Instance.new("Frame")
+    valOverlay.Size = UDim2.new(1, 0, 1, 0)
+    valOverlay.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    valOverlay.BorderSizePixel = 0
+    valOverlay.Parent = svBox
+    Instance.new("UICorner", valOverlay).CornerRadius = UDim.new(0, 10)
+
+    local val = Instance.new("UIGradient")
+    val.Rotation = 90
+    val.Color = ColorSequence.new(Color3.fromRGB(0,0,0), Color3.fromRGB(0,0,0))
+    val.Transparency = NumberSequence.new({
+	    NumberSequenceKeypoint.new(0, 1),
+	    NumberSequenceKeypoint.new(1, 0)
+    })
+    val.Parent = valOverlay
+
 
 	svCursor = Instance.new("Frame")
 	svCursor.Size = UDim2.fromOffset(12, 12)
