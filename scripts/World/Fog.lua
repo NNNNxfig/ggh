@@ -48,7 +48,7 @@ local function applyFog()
 
 	if fogEnabled then
 		Lighting.FogStart = 0
-		Lighting.FogEnd = 100
+		Lighting.FogEnd = 200
 		Lighting.FogColor = c
 
 		local atm = getOrCreateAtmosphere()
@@ -56,7 +56,7 @@ local function applyFog()
 		atm.Decay = c
 		atm.Density = 0.25
 		atm.Offset = 0
-		atm.Haze = 0
+		atm.Haze = 1
 		atm.Glare = 0
 
 	else
