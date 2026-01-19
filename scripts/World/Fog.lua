@@ -47,8 +47,8 @@ local function applyFog()
 	local c = currentColor()
 
 	if fogEnabled then
-		Lighting.FogStart = 200
-		Lighting.FogEnd = 250
+		Lighting.FogStart = 400
+		Lighting.FogEnd = 700
 
 		Lighting.FogColor = c
 
