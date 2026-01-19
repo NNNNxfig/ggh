@@ -21,7 +21,11 @@ end
 local function getMainFrame()
 	local ui = getUI()
 	if not ui then return end
-	return ui:FindFirstChildWhichIsA("Frame")
+	for _, ch in ipairs(ui:GetChildren()) do
+		if ch:IsA("Frame") then
+			return ch
+		end
+	end
 end
 
 local function setFog(state)
@@ -56,30 +60,31 @@ local function slider(parent, name, y, startValue)
 	label.Position = UDim2.new(0, 12, 0, y)
 	label.Font = Enum.Font.GothamBold
 	label.TextSize = 13
-	label.TextColor3 = Color3.fromRGB(235,235,235)
+	label.TextColor3 = Color3.fromRGB(235, 235, 235)
 	label.Text = name
+ attachment: true
 	label.Parent = parent
 
 	local bar = Instance.new("Frame")
 	bar.Size = UDim2.new(1, -76, 0, 8)
 	bar.Position = UDim2.new(0, 34, 0, y + 5)
-	bar.BackgroundColor3 = Color3.fromRGB(35,35,42)
+	bar.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
 	bar.BorderSizePixel = 0
 	bar.Parent = parent
 	Instance.new("UICorner", bar).CornerRadius = UDim.new(0, 999)
 
 	local fill = Instance.new("Frame")
-	fill.Size = UDim2.new(startValue/255, 0, 1, 0)
-	fill.BackgroundColor3 = Color3.fromRGB(0,255,130)
+	fill.Size = UDim2.new(startValue / 255, 0, 1, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(0, 255, 130)
 	fill.BorderSizePixel = 0
 	fill.Parent = bar
 	Instance.new("UICorner", fill).CornerRadius = UDim.new(0, 999)
 
 	local knob = Instance.new("Frame")
 	knob.Size = UDim2.new(0, 14, 0, 14)
-	knob.Position = UDim2.new(startValue/255, -7, 0.5, 0)
+	knob.Position = UDim2.new(startValue / 255, -7, 0.5, 0)
 	knob.AnchorPoint = Vector2.new(0, 0.5)
-	knob.BackgroundColor3 = Color3.fromRGB(240,240,240)
+	knob.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
 	knob.BorderSizePixel = 0
 	knob.Parent = bar
 	Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 999)
@@ -90,7 +95,7 @@ local function slider(parent, name, y, startValue)
 	valueLbl.Position = UDim2.new(1, -36, 0, y)
 	valueLbl.Font = Enum.Font.Gotham
 	valueLbl.TextSize = 12
-	valueLbl.TextColor3 = Color3.fromRGB(235,235,235)
+	valueLbl.TextColor3 = Color3.fromRGB(235, 235, 235)
 	valueLbl.Text = tostring(startValue)
 	valueLbl.Parent = parent
 
@@ -124,7 +129,9 @@ local function slider(parent, name, y, startValue)
 		end
 	end)
 
-	return function() return val end
+	return function()
+		return val
+	end
 end
 
 local function closePicker()
@@ -136,9 +143,9 @@ local function buildPicker(parent)
 	if picker then return end
 
 	picker = Instance.new("Frame")
-	picker.Name = "FogColorPicker"
+	picker.Name = "eNigma_FogColorPicker"
 	picker.Size = UDim2.fromOffset(230, 170)
-	picker.BackgroundColor3 = Color3.fromRGB(16,16,20)
+	picker.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
 	picker.BorderSizePixel = 0
 	picker.Visible = false
 	picker.Parent = parent
@@ -146,7 +153,7 @@ local function buildPicker(parent)
 	Instance.new("UICorner", picker).CornerRadius = UDim.new(0, 12)
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(45,45,55)
+	stroke.Color = Color3.fromRGB(45, 45, 55)
 	stroke.Thickness = 1
 	stroke.Parent = picker
 
@@ -156,7 +163,7 @@ local function buildPicker(parent)
 	title.Position = UDim2.new(0, 10, 0, 8)
 	title.Font = Enum.Font.GothamBold
 	title.TextSize = 13
-	title.TextColor3 = Color3.fromRGB(235,235,235)
+	title.TextColor3 = Color3.fromRGB(235, 235, 235)
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Text = "Fog RGB"
 	title.Parent = picker
@@ -169,7 +176,7 @@ local function buildPicker(parent)
 	preview.Parent = picker
 	Instance.new("UICorner", preview).CornerRadius = UDim.new(0, 8)
 
-	local r0, g0, b0 = math.floor(fogColor.R*255), math.floor(fogColor.G*255), math.floor(fogColor.B*255)
+	local r0, g0, b0 = math.floor(fogColor.R * 255), math.floor(fogColor.G * 255), math.floor(fogColor.B * 255)
 	rVal = slider(picker, "R", 40, r0)
 	gVal = slider(picker, "G", 72, g0)
 	bVal = slider(picker, "B", 104, b0)
@@ -178,11 +185,11 @@ local function buildPicker(parent)
 	apply.AutoButtonColor = false
 	apply.Size = UDim2.new(0.5, -14, 0, 26)
 	apply.Position = UDim2.new(0, 10, 1, -34)
-	apply.BackgroundColor3 = Color3.fromRGB(0,255,130)
+	apply.BackgroundColor3 = Color3.fromRGB(0, 255, 130)
 	apply.Text = "Apply"
 	apply.Font = Enum.Font.GothamBold
 	apply.TextSize = 12
-	apply.TextColor3 = Color3.fromRGB(10,10,12)
+	apply.TextColor3 = Color3.fromRGB(10, 10, 12)
 	apply.Parent = picker
 	Instance.new("UICorner", apply).CornerRadius = UDim.new(0, 10)
 
@@ -190,11 +197,11 @@ local function buildPicker(parent)
 	close.AutoButtonColor = false
 	close.Size = UDim2.new(0.5, -14, 0, 26)
 	close.Position = UDim2.new(0.5, 4, 1, -34)
-	close.BackgroundColor3 = Color3.fromRGB(55,55,65)
+	close.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
 	close.Text = "Close"
 	close.Font = Enum.Font.GothamBold
 	close.TextSize = 12
-	close.TextColor3 = Color3.fromRGB(235,235,235)
+	close.TextColor3 = Color3.fromRGB(235, 235, 235)
 	close.Parent = picker
 	Instance.new("UICorner", close).CornerRadius = UDim.new(0, 10)
 
@@ -284,6 +291,7 @@ local function hookRightClick()
 		local ap = fogToggleBtn.AbsolutePosition
 		local as = fogToggleBtn.AbsoluteSize
 		local inside = pos.X >= ap.X and pos.X <= ap.X + as.X and pos.Y >= ap.Y and pos.Y <= ap.Y + as.Y
+
 		if inside then
 			showPickerNear(fogToggleBtn)
 		end
