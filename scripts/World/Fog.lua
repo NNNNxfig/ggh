@@ -18,6 +18,18 @@ local function getUI()
 	return pg:FindFirstChild("eNigmaUI")
 end
 
+local function getMainFrame()
+	local ui = getUI()
+	if not ui then return end
+	for _, v in ipairs(ui:GetDescendants()) do
+		if v:IsA("Frame") and v.Name == "main" then
+			return v
+		end
+	end
+	local f = ui:FindFirstChildWhichIsA("Frame")
+	return f
+end
+
 local function setFog(state)
 	fogEnabled = state
 	if fogEnabled then
@@ -126,7 +138,7 @@ local function closePicker()
 	if outsideConn then outsideConn:Disconnect() outsideConn = nil end
 end
 
-local function buildPicker(root)
+local function buildPicker(parent)
 	if picker then return end
 
 	picker = Instance.new("Frame")
@@ -135,7 +147,7 @@ local function buildPicker(root)
 	picker.BackgroundColor3 = Color3.fromRGB(16,16,20)
 	picker.BorderSizePixel = 0
 	picker.Visible = false
-	picker.Parent = root
+	picker.Parent = parent
 
 	Instance.new("UICorner", picker).CornerRadius = UDim.new(0, 12)
 
@@ -217,7 +229,6 @@ end
 local function findFogToggle()
 	local ui = getUI()
 	if not ui then return end
-
 	for _, v in ipairs(ui:GetDescendants()) do
 		if v:IsA("TextLabel") and v.Text == "Fog" then
 			local row = v.Parent
@@ -230,25 +241,20 @@ local function findFogToggle()
 end
 
 local function showPickerNear(btn)
-	local ui = getUI()
-	if not ui then return end
-	buildPicker(ui)
+	local main = getMainFrame()
+	if not main then return end
+	buildPicker(main)
 
 	local ap = btn.AbsolutePosition
 	local as = btn.AbsoluteSize
+	local mainPos = main.AbsolutePosition
+	local mainSize = main.AbsoluteSize
 
-	local px = ap.X + as.X + 12
-	local py = ap.Y - 10
+	local localX = (ap.X - mainPos.X) + as.X + 12
+	local localY = (ap.Y - mainPos.Y) - 10
 
-	local uiAbs = ui.AbsolutePosition
-	local uiSize = ui.AbsoluteSize
-
-	local localX = px - uiAbs.X
-	local localY = py - uiAbs.Y
-
-	local maxX = uiSize.X - picker.AbsoluteSize.X - 10
-	local maxY = uiSize.Y - picker.AbsoluteSize.Y - 10
-
+	local maxX = mainSize.X - 230 - 10
+	local maxY = mainSize.Y - 170 - 10
 	localX = math.clamp(localX, 10, maxX)
 	localY = math.clamp(localY, 10, maxY)
 
@@ -270,7 +276,6 @@ end
 
 local function hookRightClick()
 	if inputConn then return end
-
 	inputConn = UIS.InputBegan:Connect(function(input, gp)
 		if gp then return end
 		if input.UserInputType ~= Enum.UserInputType.MouseButton2 then return end
@@ -283,7 +288,6 @@ local function hookRightClick()
 		local pos = UIS:GetMouseLocation()
 		local ap = fogToggleBtn.AbsolutePosition
 		local as = fogToggleBtn.AbsoluteSize
-
 		local inside = pos.X >= ap.X and pos.X <= ap.X + as.X and pos.Y >= ap.Y and pos.Y <= ap.Y + as.Y
 		if inside then
 			showPickerNear(fogToggleBtn)
