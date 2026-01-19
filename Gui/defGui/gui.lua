@@ -4,20 +4,17 @@ local TweenService = game:GetService("TweenService")
 
 local baseURL = (_G.eNigma and _G.eNigma.baseURL) or ""
 
-local function httpGet(path)
-	return game:HttpGet(baseURL .. path)
-end
-
 local function import(path)
-	return loadstring(httpGet(path))()
+	local src = game:HttpGet(baseURL .. path)
+	return loadstring(src)()
 end
 
 local function tryImport(path)
 	local ok, res = pcall(function()
 		return import(path)
 	end)
-	if ok then return res end
-	return nil
+	if ok then return true, res end
+	return false, tostring(res)
 end
 
 local player = Players.LocalPlayer
@@ -32,6 +29,7 @@ local PANEL2 = Color3.fromRGB(22, 22, 27)
 
 local BORDER = Color3.fromRGB(45, 45, 55)
 local TEXT = Color3.fromRGB(235, 235, 235)
+local MUTED = Color3.fromRGB(145, 145, 155)
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "eNigmaUI"
@@ -70,8 +68,7 @@ end
 
 local function CloseMenu()
 	isOpen = false
-	local t = TweenService:Create(main, tweenInfo, { Position = hiddenPos })
-	t:Play()
+	TweenService:Create(main, tweenInfo, { Position = hiddenPos }):Play()
 end
 
 do
@@ -244,7 +241,7 @@ end
 
 local function NewSection(parent, secTitle, height)
 	local sec = Instance.new("Frame")
-	sec.Size = UDim2.new(1, 0, 0, height or 240)
+	sec.Size = UDim2.new(1, 0, 0, height or 260)
 	sec.BackgroundColor3 = PANEL2
 	sec.Parent = parent
 
@@ -288,16 +285,20 @@ local function NewSection(parent, secTitle, height)
 	return sec, holder
 end
 
-local moduleCache = {}
-
-local function GetScriptModule(path)
-	if moduleCache[path] then return moduleCache[path] end
-	local m = tryImport(path)
-	moduleCache[path] = m
-	return m
+local function NewDebugLine(parent, text)
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.new(1, 0, 0, 16)
+	l.Font = Enum.Font.Gotham
+	l.TextSize = 12
+	l.TextColor3 = MUTED
+	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.Text = text
+	l.Parent = parent
+	return l
 end
 
-local function NewToggle(parent, text, default, scriptPath)
+local function NewToggle(parent, text)
 	local row = Instance.new("Frame")
 	row.BackgroundTransparency = 1
 	row.Size = UDim2.new(1, 0, 0, 22)
@@ -319,7 +320,7 @@ local function NewToggle(parent, text, default, scriptPath)
 	btn.AnchorPoint = Vector2.new(1, 0.5)
 	btn.Text = ""
 	btn.AutoButtonColor = false
-	btn.BackgroundColor3 = default and ACCENT2 or Color3.fromRGB(55, 55, 65)
+	btn.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
 	btn.Parent = row
 
 	local bc = Instance.new("UICorner")
@@ -328,8 +329,8 @@ local function NewToggle(parent, text, default, scriptPath)
 
 	local knob = Instance.new("Frame")
 	knob.Size = UDim2.fromOffset(14, 14)
-	knob.Position = default and UDim2.new(1, -2, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-	knob.AnchorPoint = default and Vector2.new(1, 0.5) or Vector2.new(0, 0.5)
+	knob.Position = UDim2.new(0, 2, 0.5, 0)
+	knob.AnchorPoint = Vector2.new(0, 0.5)
 	knob.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
 	knob.Parent = btn
 
@@ -342,56 +343,44 @@ local function NewToggle(parent, text, default, scriptPath)
 		ColorSequenceKeypoint.new(0, ACCENT1),
 		ColorSequenceKeypoint.new(1, ACCENT2)
 	})
-	grad.Enabled = default == true
+	grad.Enabled = false
 	grad.Parent = btn
 
-	local state = default == true
-	local module
+	local state = false
 
-	local function apply(v)
-		state = v
+	btn.MouseButton1Click:Connect(function()
+		state = not state
 		btn.BackgroundColor3 = state and ACCENT2 or Color3.fromRGB(55, 55, 65)
 		knob.Position = state and UDim2.new(1, -2, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
 		knob.AnchorPoint = state and Vector2.new(1, 0.5) or Vector2.new(0, 0.5)
 		grad.Enabled = state
-
-		if scriptPath then
-			module = module or GetScriptModule(scriptPath)
-			if type(module) == "table" then
-				if state then
-					if type(module.enable) == "function" then module.enable() end
-				else
-					if type(module.disable) == "function" then module.disable() end
-				end
-			end
-		end
-	end
-
-	btn.MouseButton1Click:Connect(function()
-		apply(not state)
 	end)
 
-	apply(state)
 	return row
 end
 
-local function BuildButtonsForTab(tabName, page)
-	local list = tryImport("Gui/buttons/" .. tabName .. "/buttons.lua")
-	if type(list) ~= "table" then
+local function BuildTab(tabName, page)
+	local left, right = NewColumns(page)
+	local _, holder = NewSection(left, tabName, 300)
+
+	local ok, listOrErr = tryImport("Gui/buttons/" .. tabName .. "/buttons.lua")
+
+	if not ok then
+		NewDebugLine(holder, "Failed: Gui/buttons/" .. tabName .. "/buttons.lua")
+		NewDebugLine(holder, tostring(listOrErr))
 		return
 	end
 
-	local left, right = NewColumns(page)
-	local _, holder = NewSection(left, tabName, 280)
+	if type(listOrErr) ~= "table" then
+		NewDebugLine(holder, "buttons.lua returned not table")
+		return
+	end
 
-	for _, b in ipairs(list) do
-		local name = b.name
-		local typev = b.type
-		local buttonModule = b.buttonModule
-		local scriptModule = b.scriptModule
+	NewDebugLine(holder, "Loaded buttons: " .. tostring(#listOrErr))
 
-		if typev == "toggle" then
-			NewToggle(holder, name, false, scriptModule)
+	for _, b in ipairs(listOrErr) do
+		if type(b) == "table" then
+			NewToggle(holder, b.name or "Button")
 		end
 	end
 end
@@ -466,7 +455,7 @@ for _, tn in ipairs(tabNames) do
 		SwitchTab(tn)
 	end)
 
-	BuildButtonsForTab(tn, page)
+	BuildTab(tn, page)
 end
 
 pagesMap["Main"].Visible = true
