@@ -2,10 +2,22 @@ local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
-local baseURL = "YOUR_BASEURL_HERE/"
+local baseURL = (_G.eNigma and _G.eNigma.baseURL) or ""
 
-local function import(relPath)
-	return loadstring(game:HttpGet(baseURL .. relPath))()
+local function httpGet(path)
+	return game:HttpGet(baseURL .. path)
+end
+
+local function import(path)
+	return loadstring(httpGet(path))()
+end
+
+local function tryImport(path)
+	local ok, res = pcall(function()
+		return import(path)
+	end)
+	if ok then return res end
+	return nil
 end
 
 local player = Players.LocalPlayer
@@ -60,11 +72,6 @@ local function CloseMenu()
 	isOpen = false
 	local t = TweenService:Create(main, tweenInfo, { Position = hiddenPos })
 	t:Play()
-	t.Completed:Connect(function()
-		if not isOpen then
-			main.Visible = true
-		end
-	end)
 end
 
 do
@@ -237,7 +244,7 @@ end
 
 local function NewSection(parent, secTitle, height)
 	local sec = Instance.new("Frame")
-	sec.Size = UDim2.new(1, 0, 0, height or 200)
+	sec.Size = UDim2.new(1, 0, 0, height or 240)
 	sec.BackgroundColor3 = PANEL2
 	sec.Parent = parent
 
@@ -281,18 +288,16 @@ local function NewSection(parent, secTitle, height)
 	return sec, holder
 end
 
-local scriptCache = {}
+local moduleCache = {}
 
-local function LoadModule(path)
-	if scriptCache[path] then
-		return scriptCache[path]
-	end
-	local m = import(path)
-	scriptCache[path] = m
+local function GetScriptModule(path)
+	if moduleCache[path] then return moduleCache[path] end
+	local m = tryImport(path)
+	moduleCache[path] = m
 	return m
 end
 
-local function NewToggle(parent, text, default, modulePath)
+local function NewToggle(parent, text, default, scriptPath)
 	local row = Instance.new("Frame")
 	row.BackgroundTransparency = 1
 	row.Size = UDim2.new(1, 0, 0, 22)
@@ -350,8 +355,8 @@ local function NewToggle(parent, text, default, modulePath)
 		knob.AnchorPoint = state and Vector2.new(1, 0.5) or Vector2.new(0, 0.5)
 		grad.Enabled = state
 
-		if modulePath then
-			module = module or LoadModule(modulePath)
+		if scriptPath then
+			module = module or GetScriptModule(scriptPath)
 			if type(module) == "table" then
 				if state then
 					if type(module.enable) == "function" then module.enable() end
@@ -370,23 +375,23 @@ local function NewToggle(parent, text, default, modulePath)
 	return row
 end
 
-local function BuildTabButtons(tabName, page)
-	local ok, buttons = pcall(function()
-		return import("Gui/buttons/" .. tabName .. "/buttons.lua")
-	end)
-
-	if not ok or type(buttons) ~= "table" then
+local function BuildButtonsForTab(tabName, page)
+	local list = tryImport("Gui/buttons/" .. tabName .. "/buttons.lua")
+	if type(list) ~= "table" then
 		return
 	end
 
 	local left, right = NewColumns(page)
-	local _, holder = NewSection(left, tabName, 260)
+	local _, holder = NewSection(left, tabName, 280)
 
-	for _, b in ipairs(buttons) do
-		if type(b) == "table" then
-			if b.type == "toggle" then
-				NewToggle(holder, b.name or "Button", false, b.script)
-			end
+	for _, b in ipairs(list) do
+		local name = b.name
+		local typev = b.type
+		local buttonModule = b.buttonModule
+		local scriptModule = b.scriptModule
+
+		if typev == "toggle" then
+			NewToggle(holder, name, false, scriptModule)
 		end
 	end
 end
@@ -461,7 +466,7 @@ for _, tn in ipairs(tabNames) do
 		SwitchTab(tn)
 	end)
 
-	BuildTabButtons(tn, page)
+	BuildButtonsForTab(tn, page)
 end
 
 pagesMap["Main"].Visible = true
