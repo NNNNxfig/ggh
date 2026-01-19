@@ -12,12 +12,9 @@ local svBox, svCursor, hueBar, hueCursor
 local fogToggleBtn
 local hooked = false
 
-local draggingSV = false
-local draggingH = false
+local draggingSV, draggingH = false, false
 local draggingPicker = false
 local dragStartPos, pickerStartPos
-
-local debugGui, debugText
 
 local function getUI()
 	return Players.LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("eNigmaUI")
@@ -32,63 +29,29 @@ local function getMainFrame()
 	return nil
 end
 
-local function dbg(msg)
-	if not debugText then return end
-	debugText.Text = debugText.Text .. "\n" .. tostring(msg)
+local function ensureAtmosphere()
+	local atm = Lighting:FindFirstChild("CustomFogAtmosphere")
+	if not atm then
+		atm = Instance.new("Atmosphere")
+		atm.Name = "CustomFogAtmosphere"
+		atm.Parent = Lighting
+	end
+	return atm
 end
 
-local function dbgClear()
-	if debugText then debugText.Text = "Fog Debug:" end
-end
-
-local function buildDebug()
-	if debugGui then return end
-	local main = getMainFrame()
-	if not main then return end
-
-	debugGui = Instance.new("Frame")
-	debugGui.Name = "eNigma_Debug"
-	debugGui.Size = UDim2.fromOffset(250, 150)
-	debugGui.Position = UDim2.new(1, -260, 0, 10)
-	debugGui.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
-	debugGui.BackgroundTransparency = 0.15
-	debugGui.BorderSizePixel = 0
-	debugGui.Parent = main
-
-	Instance.new("UICorner", debugGui).CornerRadius = UDim.new(0, 10)
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(60, 60, 75)
-	stroke.Thickness = 1
-	stroke.Parent = debugGui
-
-	debugText = Instance.new("TextLabel")
-	debugText.BackgroundTransparency = 1
-	debugText.Size = UDim2.new(1, -10, 1, -10)
-	debugText.Position = UDim2.new(0, 5, 0, 5)
-	debugText.Font = Enum.Font.Code
-	debugText.TextSize = 12
-	debugText.TextColor3 = Color3.fromRGB(235, 235, 235)
-	debugText.TextXAlignment = Enum.TextXAlignment.Left
-	debugText.TextYAlignment = Enum.TextYAlignment.Top
-	debugText.TextWrapped = true
-	debugText.Text = "Fog Debug:"
-	debugText.Parent = debugGui
+local function currentColor()
+	return Color3.fromHSV(H, S, V)
 end
 
 local function applyFog()
-	local c = Color3.fromHSV(H, S, V)
+	local c = currentColor()
+
 	if fogEnabled then
 		Lighting.FogStart = 0
 		Lighting.FogEnd = 150
 		Lighting.FogColor = c
 
-		local atm = Lighting:FindFirstChild("CustomFogAtmosphere")
-		if not atm then
-			atm = Instance.new("Atmosphere")
-			atm.Name = "CustomFogAtmosphere"
-			atm.Parent = Lighting
-		end
+		local atm = ensureAtmosphere()
 		atm.Color = c
 		atm.Decay = c
 		atm.Density = 0.35
@@ -102,7 +65,7 @@ local function applyFog()
 end
 
 local function updateUI()
-	local c = Color3.fromHSV(H, S, V)
+	local c = currentColor()
 	if preview then preview.BackgroundColor3 = c end
 	if svBox then svBox.BackgroundColor3 = Color3.fromHSV(H, 1, 1) end
 	if svCursor then svCursor.Position = UDim2.new(S, 0, 1 - V, 0) end
@@ -211,7 +174,7 @@ local function buildPicker(parent)
 	preview = Instance.new("Frame")
 	preview.Size = UDim2.fromOffset(22, 22)
 	preview.Position = UDim2.new(1, -28, 0, 4)
-	preview.BackgroundColor3 = Color3.fromHSV(H, S, V)
+	preview.BackgroundColor3 = currentColor()
 	preview.BorderSizePixel = 0
 	preview.Parent = top
 	Instance.new("UICorner", preview).CornerRadius = UDim.new(0, 7)
@@ -235,12 +198,12 @@ local function buildPicker(parent)
 	})
 	sat.Parent = svBox
 
-	local valOverlay2 = Instance.new("Frame")
-	valOverlay2.Size = UDim2.new(1, 0, 1, 0)
-	valOverlay2.BackgroundColor3 = Color3.new(0, 0, 0)
-	valOverlay2.BorderSizePixel = 0
-	valOverlay2.Parent = svBox
-	Instance.new("UICorner", valOverlay2).CornerRadius = UDim.new(0, 10)
+	local valOverlay = Instance.new("Frame")
+	valOverlay.Size = UDim2.new(1, 0, 1, 0)
+	valOverlay.BackgroundColor3 = Color3.new(0, 0, 0)
+	valOverlay.BorderSizePixel = 0
+	valOverlay.Parent = svBox
+	Instance.new("UICorner", valOverlay).CornerRadius = UDim.new(0, 10)
 
 	local val = Instance.new("UIGradient")
 	val.Rotation = 90
@@ -249,7 +212,7 @@ local function buildPicker(parent)
 		NumberSequenceKeypoint.new(0, 1),
 		NumberSequenceKeypoint.new(1, 0)
 	})
-	val.Parent = valOverlay2
+	val.Parent = valOverlay
 
 	svCursor = Instance.new("Frame")
 	svCursor.Size = UDim2.fromOffset(12, 12)
@@ -381,7 +344,7 @@ end
 
 local function showPickerNear(btn)
 	local main = getMainFrame()
-	if not main then dbg("main=nil") return end
+	if not main then return end
 	buildPicker(main)
 
 	local ap = btn.AbsolutePosition
@@ -398,40 +361,28 @@ local function showPickerNear(btn)
 	picker.Position = UDim2.fromOffset(x, y)
 	picker.Visible = true
 	lockOverlay.Visible = not fogEnabled
-	dbg("open picker")
 end
 
-local function hookOnButton()
+local function hookButton()
 	if hooked then return end
-	buildDebug()
-	dbgClear()
-
 	fogToggleBtn = findFogToggle()
-	dbg("fogToggleBtn=" .. tostring(fogToggleBtn))
-
-	if not fogToggleBtn then
-		dbg("Fog toggle not found")
-		return
-	end
-
+	if not fogToggleBtn then return end
 	hooked = true
 
 	fogToggleBtn.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton2 then
-			dbgClear()
-			dbg("ПКМ on Fog toggle")
 			showPickerNear(fogToggleBtn)
 		end
 	end)
 end
 
 function M.enable()
-	hookOnButton()
+	hookButton()
 	setFog(true)
 end
 
 function M.disable()
-	hookOnButton()
+	hookButton()
 	setFog(false)
 end
 

@@ -72,17 +72,24 @@ end
 
 do
 	local dragging, dragStart, startPos = false, nil, nil
+	local DRAG_W, DRAG_H = 200, 44
+
 	main.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
-			dragStart = input.Position
-			startPos = main.Position
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
-			end)
-		end
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+
+		local localPos = input.Position - main.AbsolutePosition
+		if localPos.X < 0 or localPos.Y < 0 then return end
+		if localPos.X > DRAG_W or localPos.Y > DRAG_H then return end
+
+		dragging = true
+		dragStart = input.Position
+		startPos = main.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
 	end)
 
 	UIS.InputChanged:Connect(function(input)
@@ -95,6 +102,7 @@ do
 		end
 	end)
 end
+
 
 local sidebar = Instance.new("Frame")
 sidebar.Size = UDim2.new(0, 200, 1, 0)
