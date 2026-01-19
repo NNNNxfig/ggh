@@ -1,23 +1,24 @@
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
-local TweenService = game:GetService("TweenService")
 
 local M = {}
 
 local fogEnabled = false
-local fogColor = Color3.fromHSV(0.25, 0.8, 0.9)
 local H, S, V = 0.25, 0.8, 0.9
+local fogColor = Color3.fromHSV(H, S, V)
 
 local picker
+local lockOverlay
+local preview
+local satval
+local satvalCursor
+local hueBar
+local hueCursor
+
 local fogToggleBtn
 local inputConn
 local outsideConn
-
-local satval, satvalCursor
-local hueBar, hueCursor
-local preview
-local lockOverlay
 
 local draggingSV = false
 local draggingH = false
@@ -39,10 +40,10 @@ local function getMainFrame()
 	end
 end
 
-local function setFog(state)
-	fogEnabled = state
+local function fogApplyNow()
+	fogColor = Color3.fromHSV(H, S, V)
+
 	if fogEnabled then
-		fogColor = Color3.fromHSV(H, S, V)
 		Lighting.FogStart = 0
 		Lighting.FogEnd = 150
 		Lighting.FogColor = fogColor
@@ -65,10 +66,19 @@ local function setFog(state)
 	end
 end
 
+local function uiUpdate()
+	fogColor = Color3.fromHSV(H, S, V)
+	if preview then preview.BackgroundColor3 = fogColor end
+	if satval then satval.BackgroundColor3 = Color3.fromHSV(H, 1, 1) end
+	if satvalCursor then satvalCursor.Position = UDim2.new(S, 0, 1 - V, 0) end
+	if hueCursor then hueCursor.Position = UDim2.new(0.5, 0, H, 0) end
+	if fogEnabled then fogApplyNow() end
+end
+
 local function setFog(state)
 	fogEnabled = state
-	applyFog()
-	if picker then
+	fogApplyNow()
+	if picker and lockOverlay then
 		lockOverlay.Visible = not fogEnabled
 		lockOverlay.BackgroundTransparency = fogEnabled and 1 or 0.35
 	end
@@ -78,43 +88,19 @@ local function clamp01(x)
 	return math.clamp(x, 0, 1)
 end
 
-local function updateFromHSV()
-	fogColor = Color3.fromHSV(H, S, V)
-	if preview then preview.BackgroundColor3 = fogColor end
-	if satval then
-		local hueColor = Color3.fromHSV(H, 1, 1)
-		satval.BackgroundColor3 = hueColor
-	end
-	if satvalCursor then
-		satvalCursor.Position = UDim2.new(S, 0, 1 - V, 0)
-	end
-	if hueCursor then
-		hueCursor.Position = UDim2.new(0.5, 0, H, 0)
-	end
-	if fogEnabled then
-		applyFog()
-	end
-end
-
 local function setSVFromMouse(x, y)
 	local ap = satval.AbsolutePosition
 	local as = satval.AbsoluteSize
-
-	local sx = clamp01((x - ap.X) / as.X)
-	local sy = clamp01((y - ap.Y) / as.Y)
-
-	S = sx
-	V = 1 - sy
-	updateFromHSV()
+	S = clamp01((x - ap.X) / as.X)
+	V = 1 - clamp01((y - ap.Y) / as.Y)
+	uiUpdate()
 end
 
 local function setHFromMouse(y)
 	local ap = hueBar.AbsolutePosition
 	local as = hueBar.AbsoluteSize
-
-	local hy = clamp01((y - ap.Y) / as.Y)
-	H = hy
-	updateFromHSV()
+	H = clamp01((y - ap.Y) / as.Y)
+	uiUpdate()
 end
 
 local function makeDraggable(frame, handle)
@@ -156,6 +142,7 @@ local function buildHSVPicker(parent)
 	picker.Active = true
 
 	Instance.new("UICorner", picker).CornerRadius = UDim.new(0, 12)
+
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(45,45,55)
 	stroke.Thickness = 1
@@ -216,12 +203,12 @@ local function buildHSVPicker(parent)
 	satGrad.Rotation = 0
 	satGrad.Parent = satval
 
-	local valOverlay = Instance.new("Frame")
-	valOverlay.Size = UDim2.new(1, 0, 1, 0)
-	valOverlay.BackgroundColor3 = Color3.fromRGB(0,0,0)
-	valOverlay.BorderSizePixel = 0
-	valOverlay.Parent = satval
-	Instance.new("UICorner", valOverlay).CornerRadius = UDim.new(0, 10)
+	local valOverlay2 = Instance.new("Frame")
+	valOverlay2.Size = UDim2.new(1, 0, 1, 0)
+	valOverlay2.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	valOverlay2.BorderSizePixel = 0
+	valOverlay2.Parent = satval
+	Instance.new("UICorner", valOverlay2).CornerRadius = UDim.new(0, 10)
 
 	local valGrad = Instance.new("UIGradient")
 	valGrad.Color = ColorSequence.new(Color3.fromRGB(0,0,0), Color3.fromRGB(0,0,0))
@@ -230,7 +217,7 @@ local function buildHSVPicker(parent)
 		NumberSequenceKeypoint.new(1, 0)
 	})
 	valGrad.Rotation = 90
-	valGrad.Parent = valOverlay
+	valGrad.Parent = valOverlay2
 
 	satvalCursor = Instance.new("Frame")
 	satvalCursor.Size = UDim2.fromOffset(12, 12)
@@ -280,18 +267,6 @@ local function buildHSVPicker(parent)
 	hueStroke.Color = Color3.fromRGB(10,10,12)
 	hueStroke.Thickness = 1
 	hueStroke.Parent = hueCursor
-
-	local info = Instance.new("TextLabel")
-	info.BackgroundTransparency = 1
-	info.Size = UDim2.fromOffset(70, 50)
-	info.Position = UDim2.new(0, 210, 0, 62)
-	info.Font = Enum.Font.Gotham
-	info.TextSize = 11
-	info.TextColor3 = Color3.fromRGB(235,235,235)
-	info.TextXAlignment = Enum.TextXAlignment.Left
-	info.TextYAlignment = Enum.TextYAlignment.Top
-	info.Text = "ПКМ: открыть\nТуман: ON/OFF\nЦвет: Live"
-	info.Parent = picker
 
 	lockOverlay = Instance.new("Frame")
 	lockOverlay.Size = UDim2.new(1, 0, 1, 0)
@@ -355,7 +330,7 @@ local function buildHSVPicker(parent)
 		if outsideConn then outsideConn:Disconnect() outsideConn = nil end
 	end)
 
-	updateFromHSV()
+	uiUpdate()
 end
 
 local function findFogToggle()
