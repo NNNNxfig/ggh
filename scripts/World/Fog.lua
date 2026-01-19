@@ -29,18 +29,18 @@ local function getMainFrame()
 	return nil
 end
 
-local function ensureAtmosphere()
-	local atm = Lighting:FindFirstChild("CustomFogAtmosphere")
+local function currentColor()
+	return Color3.fromHSV(H, S, V)
+end
+
+local function getOrCreateAtmosphere()
+	local atm = Lighting:FindFirstChild("eNigmaFogAtmosphere")
 	if not atm then
 		atm = Instance.new("Atmosphere")
-		atm.Name = "CustomFogAtmosphere"
+		atm.Name = "eNigmaFogAtmosphere"
 		atm.Parent = Lighting
 	end
 	return atm
-end
-
-local function currentColor()
-	return Color3.fromHSV(H, S, V)
 end
 
 local function applyFog()
@@ -48,18 +48,21 @@ local function applyFog()
 
 	if fogEnabled then
 		Lighting.FogStart = 0
-		Lighting.FogEnd = 150
+		Lighting.FogEnd = 60
 		Lighting.FogColor = c
 
-		local atm = ensureAtmosphere()
+		local atm = getOrCreateAtmosphere()
 		atm.Color = c
 		atm.Decay = c
-		atm.Density = 0.35
+		atm.Density = 0.85
 		atm.Offset = 0
+		atm.Haze = 3
+		atm.Glare = 0
+
 	else
 		Lighting.FogStart = 0
 		Lighting.FogEnd = 9e9
-		local atm = Lighting:FindFirstChild("CustomFogAtmosphere")
+		local atm = Lighting:FindFirstChild("eNigmaFogAtmosphere")
 		if atm then atm:Destroy() end
 	end
 end
