@@ -29,7 +29,6 @@ local PANEL2 = Color3.fromRGB(22, 22, 27)
 
 local BORDER = Color3.fromRGB(45, 45, 55)
 local TEXT = Color3.fromRGB(235, 235, 235)
-local MUTED = Color3.fromRGB(145, 145, 155)
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "eNigmaUI"
@@ -195,7 +194,7 @@ header.Font = Enum.Font.GothamBold
 header.TextSize = 18
 header.TextColor3 = TEXT
 header.TextXAlignment = Enum.TextXAlignment.Left
-header.Text = "Main"
+header.Text = ""
 header.Parent = content
 
 local pages = Instance.new("Frame")
@@ -285,20 +284,22 @@ local function NewSection(parent, secTitle, height)
 	return sec, holder
 end
 
-local function NewDebugLine(parent, text)
-	local l = Instance.new("TextLabel")
-	l.BackgroundTransparency = 1
-	l.Size = UDim2.new(1, 0, 0, 16)
-	l.Font = Enum.Font.Gotham
-	l.TextSize = 12
-	l.TextColor3 = MUTED
-	l.TextXAlignment = Enum.TextXAlignment.Left
-	l.Text = text
-	l.Parent = parent
-	return l
+local moduleCache = {}
+
+local function GetModule(path)
+	if moduleCache[path] ~= nil then
+		return moduleCache[path]
+	end
+	local ok, res = tryImport(path)
+	if ok then
+		moduleCache[path] = res
+		return res
+	end
+	moduleCache[path] = false
+	return nil
 end
 
-local function NewToggle(parent, text)
+local function NewToggle(parent, text, scriptPath)
 	local row = Instance.new("Frame")
 	row.BackgroundTransparency = 1
 	row.Size = UDim2.new(1, 0, 0, 22)
@@ -347,13 +348,29 @@ local function NewToggle(parent, text)
 	grad.Parent = btn
 
 	local state = false
+	local module = nil
 
-	btn.MouseButton1Click:Connect(function()
-		state = not state
+	local function apply(v)
+		state = v
 		btn.BackgroundColor3 = state and ACCENT2 or Color3.fromRGB(55, 55, 65)
 		knob.Position = state and UDim2.new(1, -2, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
 		knob.AnchorPoint = state and Vector2.new(1, 0.5) or Vector2.new(0, 0.5)
 		grad.Enabled = state
+
+		if scriptPath and scriptPath ~= "" then
+			module = module or GetModule(scriptPath)
+			if type(module) == "table" then
+				if state then
+					if type(module.enable) == "function" then module.enable() end
+				else
+					if type(module.disable) == "function" then module.disable() end
+				end
+			end
+		end
+	end
+
+	btn.MouseButton1Click:Connect(function()
+		apply(not state)
 	end)
 
 	return row
@@ -364,23 +381,17 @@ local function BuildTab(tabName, page)
 	local _, holder = NewSection(left, tabName, 300)
 
 	local ok, listOrErr = tryImport("Gui/buttons/" .. tabName .. "/buttons.lua")
-
 	if not ok then
-		NewDebugLine(holder, "Failed: Gui/buttons/" .. tabName .. "/buttons.lua")
-		NewDebugLine(holder, tostring(listOrErr))
 		return
 	end
 
 	if type(listOrErr) ~= "table" then
-		NewDebugLine(holder, "buttons.lua returned not table")
 		return
 	end
 
-	NewDebugLine(holder, "Loaded buttons: " .. tostring(#listOrErr))
-
 	for _, b in ipairs(listOrErr) do
-		if type(b) == "table" then
-			NewToggle(holder, b.name or "Button")
+		if type(b) == "table" and b.type == "toggle" then
+			NewToggle(holder, b.name or "Button", b.scriptModule or "")
 		end
 	end
 end
@@ -441,7 +452,7 @@ local function SwitchTab(name)
 		t.Line.Visible = active
 		t.Button.BackgroundColor3 = active and Color3.fromRGB(30, 30, 38) or Color3.fromRGB(24, 24, 30)
 	end
-	header.Text = name
+	header.Text = ""
 end
 
 local tabNames = { "Rage", "Anti-aim", "Players", "Visual", "World", "Main" }
