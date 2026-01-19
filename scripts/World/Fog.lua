@@ -7,15 +7,15 @@ local M = {}
 local fogEnabled = false
 local H, S, V = 0.25, 0.8, 0.9
 
-local picker
+local picker, lockOverlay, preview
+local svBox, svCursor, hueBar, hueCursor
 local fogToggleBtn
-local inputConn
-local outsideConn
-
-local svBox, svCursor, hueBar, hueCursor, preview, lockOverlay
+local hooked = false
 
 local draggingSV = false
 local draggingH = false
+local draggingPicker = false
+local dragStartPos, pickerStartPos
 
 local debugGui, debugText
 
@@ -24,12 +24,10 @@ local function getUI()
 end
 
 local function getMainFrame()
-	local ui = getUI()
-	if not ui then return nil end
-	for _, ch in ipairs(ui:GetChildren()) do
-		if ch:IsA("Frame") then
-			return ch
-		end
+	local g = getUI()
+	if not g then return nil end
+	for _, ch in ipairs(g:GetChildren()) do
+		if ch:IsA("Frame") then return ch end
 	end
 	return nil
 end
@@ -45,8 +43,6 @@ end
 
 local function buildDebug()
 	if debugGui then return end
-	local ui = getUI()
-	if not ui then return end
 	local main = getMainFrame()
 	if not main then return end
 
@@ -60,6 +56,7 @@ local function buildDebug()
 	debugGui.Parent = main
 
 	Instance.new("UICorner", debugGui).CornerRadius = UDim.new(0, 10)
+
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(60, 60, 75)
 	stroke.Thickness = 1
@@ -104,18 +101,6 @@ local function applyFog()
 	end
 end
 
-local function setFog(state)
-	fogEnabled = state
-	applyFog()
-	if lockOverlay then
-		lockOverlay.Visible = not fogEnabled
-	end
-end
-
-local function clamp01(x)
-	return math.clamp(x, 0, 1)
-end
-
 local function updateUI()
 	local c = Color3.fromHSV(H, S, V)
 	if preview then preview.BackgroundColor3 = c end
@@ -123,6 +108,16 @@ local function updateUI()
 	if svCursor then svCursor.Position = UDim2.new(S, 0, 1 - V, 0) end
 	if hueCursor then hueCursor.Position = UDim2.new(0.5, 0, H, 0) end
 	if fogEnabled then applyFog() end
+end
+
+local function setFog(state)
+	fogEnabled = state
+	applyFog()
+	if lockOverlay then lockOverlay.Visible = not fogEnabled end
+end
+
+local function clamp01(x)
+	return math.clamp(x, 0, 1)
 end
 
 local function setSV(mx, my)
@@ -138,6 +133,32 @@ local function setH(my)
 	local as = hueBar.AbsoluteSize
 	H = clamp01((my - ap.Y) / as.Y)
 	updateUI()
+end
+
+local function makeDraggable(frame, handle)
+	handle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			draggingPicker = true
+			dragStartPos = input.Position
+			pickerStartPos = frame.Position
+		end
+	end)
+
+	handle.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			draggingPicker = false
+		end
+	end)
+
+	UIS.InputChanged:Connect(function(input)
+		if draggingPicker and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - dragStartPos
+			frame.Position = UDim2.new(
+				pickerStartPos.X.Scale, pickerStartPos.X.Offset + delta.X,
+				pickerStartPos.Y.Scale, pickerStartPos.Y.Offset + delta.Y
+			)
+		end
+	end)
 end
 
 local function buildPicker(parent)
@@ -159,24 +180,43 @@ local function buildPicker(parent)
 	stroke.Thickness = 1
 	stroke.Parent = picker
 
+	local top = Instance.new("Frame")
+	top.Size = UDim2.new(1, 0, 0, 30)
+	top.BackgroundTransparency = 1
+	top.Parent = picker
+
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(1, 0, 0, 22)
-	title.Position = UDim2.new(0, 10, 0, 6)
+	title.Size = UDim2.new(1, -90, 1, 0)
+	title.Position = UDim2.new(0, 10, 0, 0)
 	title.Font = Enum.Font.GothamBold
 	title.TextSize = 13
 	title.TextColor3 = Color3.fromRGB(235, 235, 235)
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Text = "Fog HSV"
-	title.Parent = picker
+	title.Parent = top
+
+	local close = Instance.new("TextButton")
+	close.AutoButtonColor = false
+	close.Size = UDim2.fromOffset(46, 22)
+	close.Position = UDim2.new(1, -54, 0, 4)
+	close.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+	close.Text = "X"
+	close.Font = Enum.Font.GothamBold
+	close.TextSize = 13
+	close.TextColor3 = Color3.fromRGB(235, 235, 235)
+	close.Parent = top
+	Instance.new("UICorner", close).CornerRadius = UDim.new(0, 8)
 
 	preview = Instance.new("Frame")
 	preview.Size = UDim2.fromOffset(22, 22)
-	preview.Position = UDim2.new(1, -32, 0, 6)
+	preview.Position = UDim2.new(1, -28, 0, 4)
 	preview.BackgroundColor3 = Color3.fromHSV(H, S, V)
 	preview.BorderSizePixel = 0
-	preview.Parent = picker
+	preview.Parent = top
 	Instance.new("UICorner", preview).CornerRadius = UDim.new(0, 7)
+
+	makeDraggable(picker, top)
 
 	svBox = Instance.new("Frame")
 	svBox.Size = UDim2.fromOffset(160, 140)
@@ -219,6 +259,7 @@ local function buildPicker(parent)
 	svCursor.BorderSizePixel = 0
 	svCursor.Parent = svBox
 	Instance.new("UICorner", svCursor).CornerRadius = UDim.new(0, 999)
+
 	local cs = Instance.new("UIStroke")
 	cs.Color = Color3.fromRGB(10, 10, 12)
 	cs.Thickness = 2
@@ -253,8 +294,9 @@ local function buildPicker(parent)
 	hueCursor.BorderSizePixel = 0
 	hueCursor.Parent = hueBar
 	Instance.new("UICorner", hueCursor).CornerRadius = UDim.new(0, 999)
+
 	local hs = Instance.new("UIStroke")
-	hs.Color = Color3.fromRGB(10, 10, 12)
+	hs.Color = Color3.fromRGB(10,10,12)
 	hs.Thickness = 1
 	hs.Parent = hueCursor
 
@@ -314,6 +356,12 @@ local function buildPicker(parent)
 			end
 		end
 	end)
+
+	close.MouseButton1Click:Connect(function()
+		picker.Visible = false
+	end)
+
+	updateUI()
 end
 
 local function findFogToggle()
@@ -333,8 +381,7 @@ end
 
 local function showPickerNear(btn)
 	local main = getMainFrame()
-	if not main then dbg("main frame = nil") return end
-
+	if not main then dbg("main=nil") return end
 	buildPicker(main)
 
 	local ap = btn.AbsolutePosition
@@ -350,70 +397,42 @@ local function showPickerNear(btn)
 
 	picker.Position = UDim2.fromOffset(x, y)
 	picker.Visible = true
-
-	dbg("picker visible @ " .. x .. "," .. y)
-
-	if outsideConn then outsideConn:Disconnect() outsideConn = nil end
-	outsideConn = UIS.InputBegan:Connect(function(input)
-		if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-		if not picker.Visible then return end
-		local pos = UIS:GetMouseLocation()
-		local pa = picker.AbsolutePosition
-		local ps = picker.AbsoluteSize
-		local inside = pos.X >= pa.X and pos.X <= pa.X + ps.X and pos.Y >= pa.Y and pos.Y <= pa.Y + ps.Y
-		if not inside then
-			picker.Visible = false
-			dbg("picker закрыт (click outside)")
-		end
-	end)
+	lockOverlay.Visible = not fogEnabled
+	dbg("open picker")
 end
 
-local function hookRightClick()
-	if inputConn then return end
+local function hookOnButton()
+	if hooked then return end
+	buildDebug()
+	dbgClear()
 
-	inputConn = UIS.InputBegan:Connect(function(input, gp)
-		if input.UserInputType ~= Enum.UserInputType.MouseButton2 then return end
+	fogToggleBtn = findFogToggle()
+	dbg("fogToggleBtn=" .. tostring(fogToggleBtn))
 
-		buildDebug()
-		dbgClear()
-		dbg("ПКМ detected | gp=" .. tostring(gp))
+	if not fogToggleBtn then
+		dbg("Fog toggle not found")
+		return
+	end
 
-		if not fogToggleBtn or not fogToggleBtn.Parent then
-			fogToggleBtn = findFogToggle()
-			dbg("fogToggleBtn=" .. tostring(fogToggleBtn))
-		end
-		if not fogToggleBtn then
-			dbg("Fog toggle НЕ найден")
-			return
-		end
+	hooked = true
 
-		local pos = UIS:GetMouseLocation()
-		local ap = fogToggleBtn.AbsolutePosition
-		local as = fogToggleBtn.AbsoluteSize
-
-		local inside = pos.X >= ap.X and pos.X <= ap.X + as.X and pos.Y >= ap.Y and pos.Y <= ap.Y + as.Y
-		dbg("mouse=" .. math.floor(pos.X) .. "," .. math.floor(pos.Y))
-		dbg("toggle=" .. math.floor(ap.X) .. "," .. math.floor(ap.Y) .. " size=" .. as.X .. "x" .. as.Y)
-		dbg("inside=" .. tostring(inside))
-
-		if inside then
+	fogToggleBtn.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton2 then
+			dbgClear()
+			dbg("ПКМ on Fog toggle")
 			showPickerNear(fogToggleBtn)
 		end
 	end)
 end
 
 function M.enable()
-	buildDebug()
-	hookRightClick()
+	hookOnButton()
 	setFog(true)
-	dbg("Fog enable()")
 end
 
 function M.disable()
-	buildDebug()
-	hookRightClick()
+	hookOnButton()
 	setFog(false)
-	dbg("Fog disable()")
 end
 
 return M
