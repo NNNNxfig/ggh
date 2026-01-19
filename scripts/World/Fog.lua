@@ -55,9 +55,9 @@ local function applyFog()
 		local atm = getOrCreateAtmosphere()
 		atm.Color = c
 		atm.Decay = c
-		atm.Density = 0.25
+		atm.Density = 0.85
 		atm.Offset = 0
-		atm.Haze = 0
+		atm.Haze = 3
 
 		atm.Glare = 0
 
