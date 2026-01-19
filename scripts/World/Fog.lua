@@ -21,13 +21,7 @@ end
 local function getMainFrame()
 	local ui = getUI()
 	if not ui then return end
-	for _, v in ipairs(ui:GetDescendants()) do
-		if v:IsA("Frame") and v.Name == "main" then
-			return v
-		end
-	end
-	local f = ui:FindFirstChildWhichIsA("Frame")
-	return f
+	return ui:FindFirstChildWhichIsA("Frame")
 end
 
 local function setFog(state)
@@ -255,6 +249,7 @@ local function showPickerNear(btn)
 
 	local maxX = mainSize.X - 230 - 10
 	local maxY = mainSize.Y - 170 - 10
+
 	localX = math.clamp(localX, 10, maxX)
 	localY = math.clamp(localY, 10, maxY)
 
