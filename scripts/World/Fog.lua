@@ -6,6 +6,8 @@ local M = {}
 
 local fogEnabled = false
 local H, S, V = 0.25, 0.8, 0.9
+local fogPower = 0.35
+
 
 local picker, lockOverlay, preview
 local svBox, svCursor, hueBar, hueCursor
@@ -43,29 +45,23 @@ local function getOrCreateAtmosphere()
 	return atm
 end
 
+
 local function applyFog()
-	local c = currentColor()
+		if not fogEnabled then
+			local atm = Lighting:FindFirstChild("eNigmaFogAtmosphere")
+			if atm then atm:Destroy() end
+			return
+		end
 
-	if fogEnabled then
-		Lighting.FogStart = 0
-		Lighting.FogEnd = 60
-
-		Lighting.FogColor = c
-
+		local c = currentColor()
 		local atm = getOrCreateAtmosphere()
+
 		atm.Color = c
 		atm.Decay = c
-		atm.Density = 0.85
+		atm.Density = fogPower
 		atm.Offset = 0
-		atm.Haze = 3
-
+		atm.Haze = 0
 		atm.Glare = 0
-
-	else
-		Lighting.FogStart = 0
-		Lighting.FogEnd = 9e9
-		local atm = Lighting:FindFirstChild("eNigmaFogAtmosphere")
-		if atm then atm:Destroy() end
 	end
 end
 
@@ -266,6 +262,68 @@ local function buildPicker(parent)
 	hs.Color = Color3.fromRGB(10,10,12)
 	hs.Thickness = 1
 	hs.Parent = hueCursor
+
+
+	local sliderBG = Instance.new("Frame")
+sliderBG.Size = UDim2.fromOffset(230, 10)
+sliderBG.Position = UDim2.new(0, 12, 1, -20)
+sliderBG.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+sliderBG.BorderSizePixel = 0
+sliderBG.Parent = picker
+Instance.new("UICorner", sliderBG).CornerRadius = UDim.new(0, 999)
+
+local sliderFill = Instance.new("Frame")
+sliderFill.Size = UDim2.new(fogPower, 0, 1, 0)
+sliderFill.BackgroundColor3 = Color3.fromRGB(0, 255, 130)
+sliderFill.BorderSizePixel = 0
+sliderFill.Parent = sliderBG
+Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(0, 999)
+
+local sliderKnob = Instance.new("Frame")
+sliderKnob.Size = UDim2.fromOffset(14, 14)
+sliderKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+sliderKnob.Position = UDim2.new(fogPower, 0, 0.5, 0)
+sliderKnob.BackgroundColor3 = Color3.fromRGB(240,240,240)
+sliderKnob.BorderSizePixel = 0
+sliderKnob.Parent = sliderBG
+Instance.new("UICorner", sliderKnob).CornerRadius = UDim.new(0, 999)
+
+local sliderStroke = Instance.new("UIStroke")
+sliderStroke.Color = Color3.fromRGB(10,10,12)
+sliderStroke.Thickness = 1
+sliderStroke.Parent = sliderKnob
+
+local draggingSlider = false
+
+local function setPowerFromX(x)
+	local ap = sliderBG.AbsolutePosition
+	local as = sliderBG.AbsoluteSize
+	fogPower = math.clamp((x - ap.X) / as.X, 0, 1)
+
+	sliderFill.Size = UDim2.new(fogPower, 0, 1, 0)
+	sliderKnob.Position = UDim2.new(fogPower, 0, 0.5, 0)
+
+	if fogEnabled then applyFog() end
+end
+
+sliderBG.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingSlider = true
+		setPowerFromX(input.Position.X)
+	end
+end)
+
+sliderBG.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingSlider = false
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
+		setPowerFromX(input.Position.X)
+	end
+end)
 
 	lockOverlay = Instance.new("Frame")
 	lockOverlay.Size = UDim2.new(1, 0, 1, 0)
