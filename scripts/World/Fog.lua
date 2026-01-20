@@ -71,12 +71,10 @@ local function applyFog()
 
 	local c = currentColor()
 
-	-- 1) Lighting Fog (даёт основу)
 	Lighting.FogStart = 0
 	Lighting.FogEnd = 80 + (1 - fogPower) * 400
 	Lighting.FogColor = c
 
-	-- 2) Atmosphere (плотность/туман)
 	local atm = getOrCreateAtmosphere()
 	atm.Density = math.clamp(fogPower, 0, 1)
 	atm.Offset = 0
@@ -85,7 +83,6 @@ local function applyFog()
 	atm.Color = c
 	atm.Decay = c
 
-	-- 3) ColorCorrection (чтобы цвет реально было видно всегда)
 	local cc = getOrCreateCC()
 	cc.TintColor = c
 end
@@ -148,8 +145,14 @@ local function makeDraggable(frame, handle)
 	end)
 end
 
+local function zi(obj, z)
+	if obj then obj.ZIndex = z end
+end
+
 local function buildPicker(parent)
 	if picker then return end
+
+	local Z = 80
 
 	picker = Instance.new("Frame")
 	picker.Name = "eNigma_FogHSVPicker"
@@ -159,19 +162,20 @@ local function buildPicker(parent)
 	picker.Visible = false
 	picker.Parent = parent
 	picker.Active = true
-	picker.ZIndex = 50
+	picker.ZIndex = Z
 
-	Instance.new("UICorner", picker).CornerRadius = UDim.new(0, 12)
+	local cr = Instance.new("UICorner", picker)
+	cr.CornerRadius = UDim.new(0, 12)
 
-	local stroke = Instance.new("UIStroke")
+	local stroke = Instance.new("UIStroke", picker)
 	stroke.Color = Color3.fromRGB(45, 45, 55)
 	stroke.Thickness = 1
-	stroke.Parent = picker
 
 	local top = Instance.new("Frame")
 	top.Size = UDim2.new(1, 0, 0, 30)
 	top.BackgroundTransparency = 1
 	top.Parent = picker
+	zi(top, Z+1)
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
@@ -183,6 +187,7 @@ local function buildPicker(parent)
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Text = "Fog HSV"
 	title.Parent = top
+	zi(title, Z+2)
 
 	local close = Instance.new("TextButton")
 	close.AutoButtonColor = false
@@ -194,17 +199,18 @@ local function buildPicker(parent)
 	close.TextSize = 13
 	close.TextColor3 = Color3.fromRGB(235, 235, 235)
 	close.Parent = top
+	zi(close, Z+3)
 	Instance.new("UICorner", close).CornerRadius = UDim.new(0, 8)
 
 	makeDraggable(picker, top)
 
-	-- SV квадрат (правильный)
 	svBox = Instance.new("Frame")
 	svBox.Size = UDim2.fromOffset(160, 140)
 	svBox.Position = UDim2.new(0, 12, 0, 38)
 	svBox.BackgroundColor3 = Color3.fromHSV(H, 1, 1)
 	svBox.BorderSizePixel = 0
 	svBox.Parent = picker
+	zi(svBox, Z+1)
 	Instance.new("UICorner", svBox).CornerRadius = UDim.new(0, 10)
 
 	local satOverlay = Instance.new("Frame")
@@ -212,32 +218,32 @@ local function buildPicker(parent)
 	satOverlay.BackgroundColor3 = Color3.fromRGB(255,255,255)
 	satOverlay.BorderSizePixel = 0
 	satOverlay.Parent = svBox
+	zi(satOverlay, Z+2)
 	Instance.new("UICorner", satOverlay).CornerRadius = UDim.new(0, 10)
 
-	local sat = Instance.new("UIGradient")
+	local sat = Instance.new("UIGradient", satOverlay)
 	sat.Rotation = 0
 	sat.Color = ColorSequence.new(Color3.fromRGB(255,255,255), Color3.fromRGB(255,255,255))
 	sat.Transparency = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 0),
 		NumberSequenceKeypoint.new(1, 1)
 	})
-	sat.Parent = satOverlay
 
 	local valOverlay = Instance.new("Frame")
 	valOverlay.Size = UDim2.new(1, 0, 1, 0)
 	valOverlay.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	valOverlay.BorderSizePixel = 0
 	valOverlay.Parent = svBox
+	zi(valOverlay, Z+3)
 	Instance.new("UICorner", valOverlay).CornerRadius = UDim.new(0, 10)
 
-	local val = Instance.new("UIGradient")
+	local val = Instance.new("UIGradient", valOverlay)
 	val.Rotation = 90
 	val.Color = ColorSequence.new(Color3.fromRGB(0,0,0), Color3.fromRGB(0,0,0))
 	val.Transparency = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 1),
 		NumberSequenceKeypoint.new(1, 0)
 	})
-	val.Parent = valOverlay
 
 	svCursor = Instance.new("Frame")
 	svCursor.Size = UDim2.fromOffset(12, 12)
@@ -246,23 +252,23 @@ local function buildPicker(parent)
 	svCursor.BackgroundColor3 = Color3.fromRGB(255,255,255)
 	svCursor.BorderSizePixel = 0
 	svCursor.Parent = svBox
+	zi(svCursor, Z+6)
 	Instance.new("UICorner", svCursor).CornerRadius = UDim.new(0, 999)
 
-	local cs = Instance.new("UIStroke")
+	local cs = Instance.new("UIStroke", svCursor)
 	cs.Color = Color3.fromRGB(10, 10, 12)
 	cs.Thickness = 2
-	cs.Parent = svCursor
 
-	-- Hue bar
 	hueBar = Instance.new("Frame")
 	hueBar.Size = UDim2.fromOffset(16, 140)
 	hueBar.Position = UDim2.new(0, 184, 0, 38)
 	hueBar.BackgroundColor3 = Color3.new(1,1,1)
 	hueBar.BorderSizePixel = 0
 	hueBar.Parent = picker
+	zi(hueBar, Z+2)
 	Instance.new("UICorner", hueBar).CornerRadius = UDim.new(0, 999)
 
-	local hue = Instance.new("UIGradient")
+	local hue = Instance.new("UIGradient", hueBar)
 	hue.Rotation = 90
 	hue.Color = ColorSequence.new({
 		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255,0,0)),
@@ -273,7 +279,6 @@ local function buildPicker(parent)
 		ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255,0,255)),
 		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255,0,0))
 	})
-	hue.Parent = hueBar
 
 	hueCursor = Instance.new("Frame")
 	hueCursor.Size = UDim2.new(1, 8, 0, 4)
@@ -282,14 +287,12 @@ local function buildPicker(parent)
 	hueCursor.BackgroundColor3 = Color3.fromRGB(240,240,240)
 	hueCursor.BorderSizePixel = 0
 	hueCursor.Parent = hueBar
+	zi(hueCursor, Z+5)
 	Instance.new("UICorner", hueCursor).CornerRadius = UDim.new(0, 999)
-
-	local hs = Instance.new("UIStroke")
+	local hs = Instance.new("UIStroke", hueCursor)
 	hs.Color = Color3.fromRGB(10,10,12)
 	hs.Thickness = 1
-	hs.Parent = hueCursor
 
-	-- Fog Power slider
 	local sliderLabel = Instance.new("TextLabel")
 	sliderLabel.BackgroundTransparency = 1
 	sliderLabel.Size = UDim2.fromOffset(160, 16)
@@ -300,6 +303,7 @@ local function buildPicker(parent)
 	sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
 	sliderLabel.Text = "Fog Power"
 	sliderLabel.Parent = picker
+	zi(sliderLabel, Z+2)
 
 	local sliderBG = Instance.new("Frame")
 	sliderBG.Size = UDim2.fromOffset(230, 10)
@@ -307,6 +311,7 @@ local function buildPicker(parent)
 	sliderBG.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 	sliderBG.BorderSizePixel = 0
 	sliderBG.Parent = picker
+	zi(sliderBG, Z+2)
 	Instance.new("UICorner", sliderBG).CornerRadius = UDim.new(0, 999)
 
 	local sliderFill = Instance.new("Frame")
@@ -314,6 +319,7 @@ local function buildPicker(parent)
 	sliderFill.BackgroundColor3 = Color3.fromRGB(0, 255, 130)
 	sliderFill.BorderSizePixel = 0
 	sliderFill.Parent = sliderBG
+	zi(sliderFill, Z+3)
 	Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(0, 999)
 
 	local sliderKnob = Instance.new("Frame")
@@ -323,23 +329,19 @@ local function buildPicker(parent)
 	sliderKnob.BackgroundColor3 = Color3.fromRGB(240,240,240)
 	sliderKnob.BorderSizePixel = 0
 	sliderKnob.Parent = sliderBG
+	zi(sliderKnob, Z+4)
 	Instance.new("UICorner", sliderKnob).CornerRadius = UDim.new(0, 999)
-
-	local sliderStroke = Instance.new("UIStroke")
+	local sliderStroke = Instance.new("UIStroke", sliderKnob)
 	sliderStroke.Color = Color3.fromRGB(10,10,12)
 	sliderStroke.Thickness = 1
-	sliderStroke.Parent = sliderKnob
 
 	local draggingSlider = false
-
 	local function setPowerFromX(x)
 		local ap = sliderBG.AbsolutePosition
 		local as = sliderBG.AbsoluteSize
 		fogPower = math.clamp((x - ap.X) / as.X, 0, 1)
-
 		sliderFill.Size = UDim2.new(fogPower, 0, 1, 0)
 		sliderKnob.Position = UDim2.new(fogPower, 0, 0.5, 0)
-
 		if fogEnabled then applyFog() end
 	end
 
@@ -363,7 +365,6 @@ local function buildPicker(parent)
 		end
 	end)
 
-	-- Lock overlay
 	lockOverlay = Instance.new("Frame")
 	lockOverlay.Size = UDim2.new(1, 0, 1, 0)
 	lockOverlay.BackgroundColor3 = Color3.fromRGB(10,10,12)
@@ -371,6 +372,7 @@ local function buildPicker(parent)
 	lockOverlay.BorderSizePixel = 0
 	lockOverlay.Visible = not fogEnabled
 	lockOverlay.Parent = picker
+	lockOverlay.ZIndex = Z+100
 	Instance.new("UICorner", lockOverlay).CornerRadius = UDim.new(0, 12)
 
 	local lockText = Instance.new("TextLabel")
@@ -381,8 +383,8 @@ local function buildPicker(parent)
 	lockText.TextColor3 = Color3.fromRGB(235,235,235)
 	lockText.Text = "Enable Fog to edit"
 	lockText.Parent = lockOverlay
+	lockText.ZIndex = Z+101
 
-	-- Input for SV/Hue
 	svBox.InputBegan:Connect(function(input)
 		if not fogEnabled then return end
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
