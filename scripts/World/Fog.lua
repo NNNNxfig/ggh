@@ -63,7 +63,7 @@ local function applyFog()
 		atm.Haze = 0
 		atm.Glare = 0
 	end
-end
+
 
 local function updateUI()
 	local c = currentColor()
