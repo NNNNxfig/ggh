@@ -44,22 +44,41 @@ local function getOrCreateAtmosphere()
 	return atm
 end
 
+local function getOrCreateCC()
+	local cc = Lighting:FindFirstChild("eNigmaFogCC")
+	if not cc then
+		cc = Instance.new("ColorCorrectionEffect")
+		cc.Name = "eNigmaFogCC"
+		cc.Parent = Lighting
+		cc.Saturation = -0.1
+		cc.Contrast = 0
+		cc.Brightness = 0
+	end
+	return cc
+end
+
+
 local function applyFog()
 	if not fogEnabled then
 		local atm = Lighting:FindFirstChild("eNigmaFogAtmosphere")
 		if atm then atm:Destroy() end
+
+		local cc = Lighting:FindFirstChild("eNigmaFogCC")
+		if cc then cc:Destroy() end
 		return
 	end
 
 	local c = currentColor()
-	local atm = getOrCreateAtmosphere()
 
-	atm.Color = c
-	atm.Decay = c
+	local atm = getOrCreateAtmosphere()
 	atm.Density = fogPower
 	atm.Offset = 0
 	atm.Haze = 0
 	atm.Glare = 0
+
+
+	local cc = getOrCreateCC()
+	cc.TintColor = c
 end
 
 local function updateUI()
