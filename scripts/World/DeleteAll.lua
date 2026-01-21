@@ -6,10 +6,12 @@ local M = {}
 
 local enabled = false
 local platform = nil
-local hbConn = nil
+local stepConn = nil
 
 local removed = {}
 local removedParents = {}
+
+local PLATFORM_NAME = "eNigma_DeleteAllPlatform"
 
 local function isPlayerInstance(inst)
 	for _, plr in ipairs(Players:GetPlayers()) do
@@ -24,6 +26,10 @@ end
 local function isSafeRoot(inst)
 	if inst == Workspace then return true end
 	if inst == Workspace.Terrain then return true end
+
+	if platform and (inst == platform or inst:IsDescendantOf(platform)) then
+		return true
+	end
 
 	local cam = Workspace:FindFirstChildWhichIsA("Camera")
 	if cam and (inst == cam or inst:IsDescendantOf(cam)) then
@@ -42,21 +48,28 @@ end
 
 local function shouldDelete(inst)
 	if not inst or not inst.Parent then return false end
+	if inst.Name == PLATFORM_NAME then return false end
+	if inst:GetAttribute("eNigmaSafe") == true then return false end
 	if isSafeRoot(inst) then return false end
 	if isPlayerInstance(inst) then return false end
-	if inst:IsA("Player") then return false end
 	return true
 end
 
 local function createPlatform()
 	if platform then return end
+
 	platform = Instance.new("Part")
-	platform.Name = "eNigma_DeleteAllPlatform"
+	platform.Name = PLATFORM_NAME
+	platform:SetAttribute("eNigmaSafe", true)
+
 	platform.Anchored = true
 	platform.CanCollide = true
 	platform.Locked = true
-	platform.Size = Vector3.new(40, 2, 40)
-	platform.Transparency = 0.35
+
+	platform.Size = Vector3.new(250, 6, 250)
+	platform.Transparency = 0.65
+	platform.Material = Enum.Material.Neon
+
 	platform.Parent = Workspace
 end
 
@@ -78,7 +91,9 @@ local function updatePlatform()
 	local hrp = getRootPart()
 	if not hrp then return end
 	if not platform then createPlatform() end
-	platform.CFrame = CFrame.new(hrp.Position.X, hrp.Position.Y - 6, hrp.Position.Z)
+
+	local y = hrp.Position.Y - 8
+	platform.CFrame = CFrame.new(hrp.Position.X, y, hrp.Position.Z)
 end
 
 local function deleteMap()
@@ -86,27 +101,10 @@ local function deleteMap()
 	table.clear(removedParents)
 
 	for _, inst in ipairs(Workspace:GetChildren()) do
-		if inst ~= Workspace.Terrain and not isSafeRoot(inst) then
-			if shouldDelete(inst) then
-				removed[inst] = true
-				removedParents[inst] = inst.Parent
-				inst.Parent = nil
-			end
-		end
-	end
-
-	for _, inst in ipairs(Workspace:GetDescendants()) do
 		if shouldDelete(inst) then
-			local top = inst
-			while top.Parent and top.Parent ~= Workspace do
-				top = top.Parent
-			end
-
-			if top and shouldDelete(top) and not removed[top] then
-				removed[top] = true
-				removedParents[top] = top.Parent
-				top.Parent = nil
-			end
+			removed[inst] = true
+			removedParents[inst] = inst.Parent
+			inst.Parent = nil
 		end
 	end
 end
@@ -135,9 +133,10 @@ function M.enable()
 
 	deleteMap()
 
-	hbConn = RunService.Heartbeat:Connect(function()
-		if not enabled then return end
-		updatePlatform()
+	stepConn = RunService.RenderStepped:Connect(function()
+		if enabled then
+			updatePlatform()
+		end
 	end)
 end
 
@@ -145,9 +144,9 @@ function M.disable()
 	if not enabled then return end
 	enabled = false
 
-	if hbConn then
-		hbConn:Disconnect()
-		hbConn = nil
+	if stepConn then
+		stepConn:Disconnect()
+		stepConn = nil
 	end
 
 	restoreMap()
