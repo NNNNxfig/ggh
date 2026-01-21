@@ -1,9 +1,9 @@
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
-local Debris = game:GetService("Debris")
 local Workspace = game:GetService("Workspace")
+local Debris = game:GetService("Debris")
 
 local M = {}
 
@@ -11,21 +11,13 @@ local lp = Players.LocalPlayer
 
 local enabled = false
 local tripConn = nil
-local spawnConn = nil
+local glitchConn = nil
+local cloneConn = nil
 
-local uiGui, uiLabel
-local soundsFolder
+local fxBlur, fxCC, fxBloom, fxDOF, fxSun
+
 local illusionFolder
-local pushkinModel
-
-local fxBlur, fxCC, fxBloom
-
-local AUDIO_COUNTDOWN = 73613157670420
-local AUDIO_AFTER = 107108153112295
-local AUDIO_PUSHKIN = 128894563234200
-
-local PUSHKIN_IMAGE = 70770427164757
-local ILLUSION_IMAGE = 76819867457425
+local uiGui, flash
 
 local function getChar()
 	return lp.Character
@@ -37,103 +29,45 @@ local function getHRP()
 	return ch:FindFirstChild("HumanoidRootPart")
 end
 
-local function getPlayerGui()
-	return lp:WaitForChild("PlayerGui")
+local function makeFolder()
+	if illusionFolder and illusionFolder.Parent then return end
+	illusionFolder = Instance.new("Folder")
+	illusionFolder.Name = "eNigma_TripWorld"
+	illusionFolder.Parent = Workspace
 end
 
-local function makeUI()
-	if uiGui and uiGui.Parent then return end
-
-	uiGui = Instance.new("ScreenGui")
-	uiGui.Name = "eNigma_IllusionsUI"
-	uiGui.ResetOnSpawn = false
-	uiGui.IgnoreGuiInset = true
-	uiGui.Parent = getPlayerGui()
-
-	uiLabel = Instance.new("TextLabel")
-	uiLabel.Name = "Countdown"
-	uiLabel.BackgroundTransparency = 1
-	uiLabel.Size = UDim2.new(1, 0, 1, 0)
-	uiLabel.Position = UDim2.new(0, 0, 0, 0)
-	uiLabel.Font = Enum.Font.GothamBlack
-	uiLabel.TextSize = 96
-	uiLabel.TextColor3 = Color3.fromRGB(255, 40, 40)
-	uiLabel.TextStrokeTransparency = 0
-	uiLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-	uiLabel.Text = ""
-	uiLabel.Visible = true
-	uiLabel.Parent = uiGui
-end
-
-local function destroyUI()
-	if uiGui then
-		uiGui:Destroy()
-		uiGui = nil
-		uiLabel = nil
-	end
-end
-
-local function makeFolders()
-	if not soundsFolder then
-		soundsFolder = Instance.new("Folder")
-		soundsFolder.Name = "eNigma_IllusionsSounds"
-		soundsFolder.Parent = Workspace
-	end
-	if not illusionFolder then
-		illusionFolder = Instance.new("Folder")
-		illusionFolder.Name = "eNigma_IllusionsWorld"
-		illusionFolder.Parent = Workspace
-	end
-end
-
-local function destroyFolders()
-	if soundsFolder then
-		soundsFolder:Destroy()
-		soundsFolder = nil
-	end
+local function killFolder()
 	if illusionFolder then
 		illusionFolder:Destroy()
 		illusionFolder = nil
 	end
 end
 
-local function makeSound(id, volume, looped)
-	local s = Instance.new("Sound")
-	s.SoundId = "rbxassetid://" .. tostring(id)
-	s.Volume = volume or 1
-	s.Looped = looped or false
-	s.Parent = soundsFolder
-	return s
+local function makeUI()
+	if uiGui and uiGui.Parent then return end
+	uiGui = Instance.new("ScreenGui")
+	uiGui.Name = "eNigma_TripUI"
+	uiGui.ResetOnSpawn = false
+	uiGui.IgnoreGuiInset = true
+	uiGui.Parent = lp:WaitForChild("PlayerGui")
+
+	flash = Instance.new("Frame")
+	flash.BackgroundColor3 = Color3.new(1, 1, 1)
+	flash.BackgroundTransparency = 1
+	flash.Size = UDim2.new(1, 0, 1, 0)
+	flash.Parent = uiGui
 end
 
-local function stopAllSounds()
-	if soundsFolder then
-		for _, s in ipairs(soundsFolder:GetChildren()) do
-			if s:IsA("Sound") then
-				pcall(function()
-					s:Stop()
-				end)
-			end
-		end
+local function killUI()
+	if uiGui then
+		uiGui:Destroy()
+		uiGui = nil
+		flash = nil
 	end
 end
 
-local function clearIllusions()
-	if illusionFolder then
-		for _, v in ipairs(illusionFolder:GetChildren()) do
-			v:Destroy()
-		end
-	end
-end
-
-local function clearFX()
-	if fxBlur then fxBlur:Destroy() fxBlur = nil end
-	if fxCC then fxCC:Destroy() fxCC = nil end
-	if fxBloom then fxBloom:Destroy() fxBloom = nil end
-end
-
-local function applyTripFX()
-	if fxBlur or fxCC or fxBloom then return end
+local function applyFX()
+	if fxBlur then return end
 
 	fxBlur = Instance.new("BlurEffect")
 	fxBlur.Name = "eNigmaTrip_Blur"
@@ -154,218 +88,251 @@ local function applyTripFX()
 	fxBloom.Size = 24
 	fxBloom.Threshold = 1
 	fxBloom.Parent = Lighting
+
+	fxDOF = Instance.new("DepthOfFieldEffect")
+	fxDOF.Name = "eNigmaTrip_DOF"
+	fxDOF.Enabled = true
+	fxDOF.FarIntensity = 0.7
+	fxDOF.InFocusRadius = 12
+	fxDOF.NearIntensity = 1
+	fxDOF.FocusDistance = 10
+	fxDOF.Parent = Lighting
+
+	fxSun = Instance.new("SunRaysEffect")
+	fxSun.Name = "eNigmaTrip_Sun"
+	fxSun.Enabled = true
+	fxSun.Intensity = 0.08
+	fxSun.Spread = 1
+	fxSun.Parent = Lighting
 end
 
-local function startTripMode()
-	applyTripFX()
+local function clearFX()
+	if fxBlur then fxBlur:Destroy() fxBlur = nil end
+	if fxCC then fxCC:Destroy() fxCC = nil end
+	if fxBloom then fxBloom:Destroy() fxBloom = nil end
+	if fxDOF then fxDOF:Destroy() fxDOF = nil end
+	if fxSun then fxSun:Destroy() fxSun = nil end
+end
+
+local function flashOnce(alpha)
+	if not flash then return end
+	flash.BackgroundTransparency = 1
+	flash.BackgroundColor3 = Color3.fromHSV(math.random(), 1, 1)
+
+	local t1 = TweenService:Create(flash, TweenInfo.new(0.06, Enum.EasingStyle.Linear), {
+		BackgroundTransparency = math.clamp(alpha, 0, 0.9)
+	})
+	local t2 = TweenService:Create(flash, TweenInfo.new(0.12, Enum.EasingStyle.Linear), {
+		BackgroundTransparency = 1
+	})
+	t1:Play()
+	t1.Completed:Connect(function()
+		if enabled then
+			t2:Play()
+		end
+	end)
+end
+
+local function startTrip()
+	applyFX()
+	makeUI()
 
 	local t = 0
 	tripConn = RunService.RenderStepped:Connect(function(dt)
 		if not enabled then return end
 		t += dt
 
-		local flick = (math.sin(t * 16) + 1) * 0.5
-		local flick2 = (math.sin(t * 9.5 + 2) + 1) * 0.5
+		local s1 = (math.sin(t * 17) + 1) * 0.5
+		local s2 = (math.sin(t * 7.3 + 2) + 1) * 0.5
+		local s3 = (math.sin(t * 31 + 1) + 1) * 0.5
 
 		if fxBlur then
-			fxBlur.Size = 6 + flick * 20
+			fxBlur.Size = 10 + s1 * 30
 		end
 
 		if fxCC then
-			fxCC.Brightness = -0.15 + flick * 0.35
-			fxCC.Contrast = -0.2 + flick2 * 1.25
-			fxCC.Saturation = -0.1 + flick * 1.4
-			fxCC.TintColor = Color3.fromHSV((t * 0.25) % 1, 1, 1)
+			fxCC.Brightness = -0.25 + s2 * 0.6
+			fxCC.Contrast = -0.4 + s3 * 2
+			fxCC.Saturation = 0.2 + s1 * 2.2
+			fxCC.TintColor = Color3.fromHSV((t * 0.35) % 1, 1, 1)
 		end
 
 		if fxBloom then
-			fxBloom.Intensity = 0.3 + flick2 * 1.6
-			fxBloom.Size = 24 + flick * 40
+			fxBloom.Intensity = 0.5 + s2 * 3
+			fxBloom.Size = 24 + s3 * 64
+		end
+
+		if fxDOF then
+			fxDOF.FocusDistance = 2 + s1 * 60
+			fxDOF.InFocusRadius = 4 + s2 * 40
+		end
+
+		if math.random(1, 18) == 1 then
+			flashOnce(0.35 + math.random() * 0.45)
 		end
 	end)
 end
 
-local function stopTripMode()
+local function stopTrip()
 	if tripConn then
 		tripConn:Disconnect()
 		tripConn = nil
 	end
 	clearFX()
+	killUI()
 end
 
-local function spawnImageTowardsPlayer()
+local function safeCloneCharacter(char)
+	local clone = char:Clone()
+
+	for _, d in ipairs(clone:GetDescendants()) do
+		if d:IsA("Script") or d:IsA("LocalScript") then
+			d:Destroy()
+		elseif d:IsA("Humanoid") then
+			d.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+			d.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+			d.NameDisplayDistance = 0
+		elseif d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+			d.Massless = true
+			d.AssemblyLinearVelocity = Vector3.zero
+			d.AssemblyAngularVelocity = Vector3.zero
+		end
+	end
+
+	clone.Parent = illusionFolder
+	return clone
+end
+
+local function spawnFakeTeleport()
 	if not enabled then return end
 	local hrp = getHRP()
 	if not hrp then return end
-	if not illusionFolder then return end
 
-	local dist = math.random(60, 220)
-	local angle = math.random() * math.pi * 2
-	local height = math.random(-10, 30)
+	local all = Players:GetPlayers()
+	if #all <= 1 then return end
 
-	local dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
-	local startPos = hrp.Position + dir * dist + Vector3.new(0, height, 0)
-	local endPos = hrp.Position + Vector3.new(math.random(-5, 5), math.random(-3, 6), math.random(-5, 5))
+	local pick = nil
+	for _ = 1, 8 do
+		local p = all[math.random(1, #all)]
+		if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			pick = p
+			break
+		end
+	end
+	if not pick then return end
 
-	local part = Instance.new("Part")
-	part.Name = "IllusionImage"
-	part.Anchored = true
-	part.CanCollide = false
-	part.Size = Vector3.new(math.random(16, 28), math.random(20, 36), 0.2)
-	part.Transparency = 1
-	part.Parent = illusionFolder
+	local srcChar = pick.Character
+	local srcHRP = srcChar:FindFirstChild("HumanoidRootPart")
+	if not srcHRP then return end
 
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Front
-	gui.AlwaysOnTop = true
-	gui.LightInfluence = 0
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 40
-	gui.Parent = part
+	makeFolder()
 
-	local img = Instance.new("ImageLabel")
-	img.BackgroundTransparency = 1
-	img.Size = UDim2.new(1, 0, 1, 0)
-	img.Image = "rbxassetid://" .. tostring(ILLUSION_IMAGE)
-	img.Parent = gui
+	local clone = safeCloneCharacter(srcChar)
+	local cHRP = clone:FindFirstChild("HumanoidRootPart") or clone:FindFirstChildWhichIsA("BasePart")
+	if not cHRP then
+		clone:Destroy()
+		return
+	end
 
-	part.CFrame = CFrame.new(startPos, hrp.Position)
+	local ang = math.random() * math.pi * 2
+	local dist = math.random(4, 14)
+	local height = math.random(-1, 6)
 
-	local time = math.random(20, 55) / 10
-	local tween = TweenService:Create(part, TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
-		CFrame = CFrame.new(endPos, hrp.Position)
-	})
-	tween:Play()
+	local appearPos = hrp.Position + Vector3.new(math.cos(ang) * dist, height, math.sin(ang) * dist)
+	cHRP.CFrame = CFrame.new(appearPos, hrp.Position)
 
-	Debris:AddItem(part, time + 0.25)
+	for _, bp in ipairs(clone:GetDescendants()) do
+		if bp:IsA("BasePart") then
+			bp.Transparency = 1
+		end
+	end
+
+	local fadeIn = TweenInfo.new(0.08, Enum.EasingStyle.Linear)
+	for _, bp in ipairs(clone:GetDescendants()) do
+		if bp:IsA("BasePart") then
+			TweenService:Create(bp, fadeIn, { Transparency = 0 }):Play()
+		end
+	end
+
+	local life = math.random(40, 120) / 100
+	local tpCount = math.random(2, 6)
+
+	task.spawn(function()
+		local lastPos = appearPos
+		for i = 1, tpCount do
+			if not enabled or not clone.Parent then break end
+
+			local a2 = math.random() * math.pi * 2
+			local d2 = math.random(2, 10)
+			local h2 = math.random(-2, 7)
+			local newPos = hrp.Position + Vector3.new(math.cos(a2) * d2, h2, math.sin(a2) * d2)
+
+			local tt = math.random(3, 12) / 100
+			local tw = TweenService:Create(cHRP, TweenInfo.new(tt, Enum.EasingStyle.Linear), {
+				CFrame = CFrame.new(newPos, hrp.Position)
+			})
+			tw:Play()
+			task.wait(tt + math.random(2, 8) / 100)
+
+			lastPos = newPos
+
+			if math.random(1, 2) == 1 then
+				flashOnce(0.2 + math.random() * 0.4)
+			end
+		end
+
+		if clone and clone.Parent then
+			local fadeOut = TweenInfo.new(0.12, Enum.EasingStyle.Linear)
+			for _, bp in ipairs(clone:GetDescendants()) do
+				if bp:IsA("BasePart") then
+					TweenService:Create(bp, fadeOut, { Transparency = 1 }):Play()
+				end
+			end
+			Debris:AddItem(clone, 0.2)
+		end
+	end)
+
+	Debris:AddItem(clone, life + 1.5)
 end
 
-local function startSpawning()
-	if spawnConn then return end
-	spawnConn = RunService.Heartbeat:Connect(function()
+local function startFakeTeleports()
+	if glitchConn then return end
+	glitchConn = RunService.Heartbeat:Connect(function()
 		if not enabled then return end
-		if math.random(1, 2) == 1 then
-			spawnImageTowardsPlayer()
-		end
+		if math.random(1, 3) ~= 1 then return end
+		spawnFakeTeleport()
 	end)
 end
 
-local function stopSpawning()
-	if spawnConn then
-		spawnConn:Disconnect()
-		spawnConn = nil
+local function stopFakeTeleports()
+	if glitchConn then
+		glitchConn:Disconnect()
+		glitchConn = nil
 	end
-end
-
-local function spawnPushkin()
-	if not enabled then return end
-	if not illusionFolder then return end
-	if pushkinModel and pushkinModel.Parent then return end
-
-	local hrp = getHRP()
-	if not hrp then return end
-
-	pushkinModel = Instance.new("Model")
-	pushkinModel.Name = "Pushkin"
-	pushkinModel.Parent = illusionFolder
-
-	local head = Instance.new("Part")
-	head.Name = "Head"
-	head.Anchored = true
-	head.CanCollide = false
-	head.Size = Vector3.new(7, 7, 7)
-	head.Transparency = 1
-	head.Parent = pushkinModel
-
-	local decal = Instance.new("Decal")
-	decal.Texture = "rbxassetid://" .. tostring(PUSHKIN_IMAGE)
-	decal.Face = Enum.NormalId.Front
-	decal.Parent = head
-
-	local angle = math.random() * math.pi * 2
-	local dist = math.random(14, 30)
-	local pos = hrp.Position + Vector3.new(math.cos(angle) * dist, math.random(4, 10), math.sin(angle) * dist)
-	head.CFrame = CFrame.new(pos, hrp.Position)
-
-	local s = makeSound(AUDIO_PUSHKIN, 1, false)
-	s:Play()
-
-	s.Ended:Connect(function()
-		if pushkinModel then
-			pushkinModel:Destroy()
-			pushkinModel = nil
-		end
-		if enabled then
-			startTripMode()
-		end
-	end)
-end
-
-local function countdown10()
-	makeUI()
-
-	local startSnd = makeSound(AUDIO_COUNTDOWN, 1, false)
-	startSnd:Play()
-
-	for i = 10, 1, -1 do
-		if not enabled then return false end
-		uiLabel.Text = tostring(i)
-		task.wait(1)
-	end
-
-	if not enabled then return false end
-	uiLabel.Text = "0"
-	task.wait(0.15)
-
-	uiLabel.Text = ""
-	return true
 end
 
 function M.enable()
 	if enabled then return end
 	enabled = true
 
-	makeFolders()
-	clearIllusions()
-	stopTripMode()
-	stopAllSounds()
-
-	local ok = countdown10()
-	if not ok or not enabled then return end
-
-	local after = makeSound(AUDIO_AFTER, 1, false)
-	after:Play()
-
-	startSpawning()
-
-	task.spawn(function()
-		local delayTime = math.random(4, 13) + math.random()
-		local t0 = tick()
-		while enabled and (tick() - t0) < delayTime do
-			task.wait(0.1)
-		end
-		if enabled then
-			spawnPushkin()
-		end
-	end)
+	makeFolder()
+	startTrip()
+	startFakeTeleports()
 end
 
 function M.disable()
 	if not enabled then return end
 	enabled = false
 
-	stopSpawning()
-	stopTripMode()
-	stopAllSounds()
+	stopFakeTeleports()
+	stopTrip()
 
-	if pushkinModel then
-		pushkinModel:Destroy()
-		pushkinModel = nil
+	if illusionFolder then
+		illusionFolder:Destroy()
+		illusionFolder = nil
 	end
-
-	clearIllusions()
-	destroyUI()
-	destroyFolders()
 end
 
 return M
