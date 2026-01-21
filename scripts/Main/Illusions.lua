@@ -10,7 +10,6 @@ local M = {}
 local lp = Players.LocalPlayer
 
 local enabled = false
-local conns = {}
 local tripConn = nil
 local spawnConn = nil
 
@@ -21,19 +20,12 @@ local pushkinModel
 
 local fxBlur, fxCC, fxBloom
 
-local function addConn(c)
-	table.insert(conns, c)
-	return c
-end
+local AUDIO_COUNTDOWN = 73613157670420
+local AUDIO_AFTER = 107108153112295
+local AUDIO_PUSHKIN = 128894563234200
 
-local function clearConns()
-	for _, c in ipairs(conns) do
-		pcall(function()
-			c:Disconnect()
-		end)
-	end
-	table.clear(conns)
-end
+local PUSHKIN_IMAGE = 70770427164757
+local ILLUSION_IMAGE = 76819867457425
 
 local function getChar()
 	return lp.Character
@@ -219,7 +211,7 @@ local function spawnImageTowardsPlayer()
 	part.Name = "IllusionImage"
 	part.Anchored = true
 	part.CanCollide = false
-	part.Size = Vector3.new(math.random(14, 24), math.random(18, 30), 0.2)
+	part.Size = Vector3.new(math.random(16, 28), math.random(20, 36), 0.2)
 	part.Transparency = 1
 	part.Parent = illusionFolder
 
@@ -234,7 +226,7 @@ local function spawnImageTowardsPlayer()
 	local img = Instance.new("ImageLabel")
 	img.BackgroundTransparency = 1
 	img.Size = UDim2.new(1, 0, 1, 0)
-	img.Image = "rbxassetid://70841078990321"
+	img.Image = "rbxassetid://" .. tostring(ILLUSION_IMAGE)
 	img.Parent = gui
 
 	part.CFrame = CFrame.new(startPos, hrp.Position)
@@ -281,12 +273,12 @@ local function spawnPushkin()
 	head.Name = "Head"
 	head.Anchored = true
 	head.CanCollide = false
-	head.Size = Vector3.new(6, 6, 6)
+	head.Size = Vector3.new(7, 7, 7)
 	head.Transparency = 1
 	head.Parent = pushkinModel
 
 	local decal = Instance.new("Decal")
-	decal.Texture = "rbxassetid://104805545286888"
+	decal.Texture = "rbxassetid://" .. tostring(PUSHKIN_IMAGE)
 	decal.Face = Enum.NormalId.Front
 	decal.Parent = head
 
@@ -295,7 +287,7 @@ local function spawnPushkin()
 	local pos = hrp.Position + Vector3.new(math.cos(angle) * dist, math.random(4, 10), math.sin(angle) * dist)
 	head.CFrame = CFrame.new(pos, hrp.Position)
 
-	local s = makeSound(127849538220992, 1, false)
+	local s = makeSound(AUDIO_PUSHKIN, 1, false)
 	s:Play()
 
 	s.Ended:Connect(function()
@@ -312,7 +304,7 @@ end
 local function countdown10()
 	makeUI()
 
-	local startSnd = makeSound(89421922567748, 1, false)
+	local startSnd = makeSound(AUDIO_COUNTDOWN, 1, false)
 	startSnd:Play()
 
 	for i = 10, 1, -1 do
@@ -341,8 +333,8 @@ function M.enable()
 	local ok = countdown10()
 	if not ok or not enabled then return end
 
-	local mid = makeSound(109225597938785, 1, false)
-	mid:Play()
+	local after = makeSound(AUDIO_AFTER, 1, false)
+	after:Play()
 
 	startSpawning()
 
@@ -364,7 +356,6 @@ function M.disable()
 
 	stopSpawning()
 	stopTripMode()
-	clearConns()
 	stopAllSounds()
 
 	if pushkinModel then
