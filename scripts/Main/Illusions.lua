@@ -9,6 +9,8 @@ local M = {}
 
 local lp = Players.LocalPlayer
 
+local MUSIC_ID = 92527233356967
+
 local enabled = false
 local tripConn = nil
 local teleportConn = nil
@@ -25,6 +27,8 @@ local baseCamType = nil
 local rollCurrent = 0
 local rollTarget = 0
 local frozenUntil = 0
+
+local musicSound = nil
 
 local function getChar()
 	return lp.Character
@@ -144,7 +148,7 @@ end
 
 local function flashOnce(strength, isWhite)
 	if not flash then return end
-	flash.BackgroundColor3 = isWhite and Color3.new(1,1,1) or Color3.fromHSV(math.random(), 1, 1)
+	flash.BackgroundColor3 = isWhite and Color3.new(1, 1, 1) or Color3.fromHSV(math.random(), 1, 1)
 	flash.BackgroundTransparency = 1
 
 	local t1 = TweenService:Create(flash, TweenInfo.new(0.05, Enum.EasingStyle.Linear), {
@@ -246,15 +250,18 @@ local function spawnFakeTeleport()
 	task.spawn(function()
 		for _ = 1, tpCount do
 			if not enabled or not clone.Parent then break end
+
 			local a2 = math.random() * math.pi * 2
 			local d2 = math.random(2, 10)
 			local h2 = math.random(-2, 7)
 			local newPos = hrp.Position + Vector3.new(math.cos(a2) * d2, h2, math.sin(a2) * d2)
+
 			local tt = math.random(3, 14) / 100
 			local tw = TweenService:Create(cHRP, TweenInfo.new(tt, Enum.EasingStyle.Linear), {
 				CFrame = CFrame.new(newPos, hrp.Position)
 			})
 			tw:Play()
+
 			task.wait(tt + math.random(2, 9) / 100)
 
 			if math.random(1, 2) == 1 then
@@ -293,6 +300,40 @@ local function stopFakeTeleports()
 	end
 end
 
+local function startMusic()
+	if musicSound and musicSound.Parent then
+		pcall(function()
+			musicSound:Stop()
+			musicSound:Destroy()
+		end)
+	end
+
+	musicSound = Instance.new("Sound")
+	musicSound.Name = "eNigmaTripMusic"
+	musicSound.SoundId = "rbxassetid://" .. tostring(MUSIC_ID)
+	musicSound.Volume = 1
+	musicSound.Looped = false
+	musicSound.Parent = Workspace
+
+	musicSound.Ended:Connect(function()
+		if enabled then
+			M.disable()
+		end
+	end)
+
+	musicSound:Play()
+end
+
+local function stopMusic()
+	if musicSound then
+		pcall(function()
+			musicSound:Stop()
+			musicSound:Destroy()
+		end)
+		musicSound = nil
+	end
+end
+
 local function startTrip()
 	applyFX()
 	makeUI()
@@ -305,8 +346,8 @@ local function startTrip()
 	local t = 0
 	tripConn = RunService.RenderStepped:Connect(function(dt)
 		if not enabled then return end
-
 		ensureCamera()
+
 		t += dt
 
 		local s1 = (math.sin(t * 17) + 1) * 0.5
@@ -352,14 +393,14 @@ local function startTrip()
 		end
 
 		if math.random(1, 22) == 1 then
-			flashOnce(0.55 + math.random() * 0.4, math.random(1, 4) == 1)
+			flashOnce(0.65 + math.random() * 0.35, math.random(1, 3) == 1)
 		end
 
 		local breathe = baseFOV + math.sin(t * 2.2) * (8 + s2 * 14)
 		cam.FieldOfView = breathe
 
 		if math.random(1, 120) == 1 then
-			rollTarget = (math.random(-25, 25) / 10)
+			rollTarget = (math.random(-40, 40) / 10)
 		end
 		rollCurrent = rollCurrent + (rollTarget - rollCurrent) * math.clamp(dt * 6, 0, 1)
 
@@ -387,6 +428,7 @@ local function stopTrip()
 		tripConn = nil
 	end
 
+	ensureCamera()
 	if cam then
 		cam.FieldOfView = baseFOV
 		if baseCamType then cam.CameraType = baseCamType end
@@ -403,16 +445,21 @@ end
 function M.enable()
 	if enabled then return end
 	enabled = true
+
 	makeFolder()
 	startTrip()
 	startFakeTeleports()
+	startMusic()
 end
 
 function M.disable()
 	if not enabled then return end
 	enabled = false
+
+	stopMusic()
 	stopFakeTeleports()
 	stopTrip()
+
 	clearFolder()
 end
 
