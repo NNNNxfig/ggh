@@ -1,7 +1,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
 
 local M = {}
 
@@ -29,18 +28,37 @@ local function isAnyPlayerChar(inst)
 	return false
 end
 
+local function modelIsRig(model)
+	if not model or not model:IsA("Model") then return false end
+
+	local pp = model.PrimaryPart
+	if pp and (pp.Name == "HumanoidRootPart" or pp.Name == "Head") then
+		return true
+	end
+
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if hum then
+		if model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head") then
+			return true
+		end
+	end
+
+	return false
+end
+
 local function isProtectedTop(top)
 	if not top or top == Workspace then return true end
 	if top == Workspace.Terrain then return true end
 	if top:IsA("Camera") then return true end
 	if top.Name == PLATFORM_NAME then return true end
 
-	if isAnyPlayerChar(top) then return true end
-
 	local cam = Workspace.CurrentCamera
 	if cam and (top == cam or top:IsDescendantOf(cam)) then
 		return true
 	end
+
+	if isAnyPlayerChar(top) then return true end
+	if top:IsA("Model") and modelIsRig(top) then return true end
 
 	return false
 end
@@ -56,7 +74,6 @@ local function isMapObject(top)
 	if top:IsA("MeshPart") then return true end
 	if top:IsA("TrussPart") then return true end
 	if top:IsA("SpawnLocation") then return true end
-	if top:IsA("Terrain") then return false end
 
 	return false
 end
@@ -109,7 +126,6 @@ local function updatePlatform()
 	local hrp = getRootPart()
 	if not hrp then return end
 	if not platform then createPlatform() end
-
 	platform.CFrame = CFrame.new(hrp.Position.X, hrp.Position.Y - 8, hrp.Position.Z)
 end
 
