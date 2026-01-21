@@ -5,17 +5,41 @@ local Workspace = game:GetService("Workspace")
 local M = {}
 
 local enabled = false
-local platform = nil
 local stepConn = nil
 
 local removed = {}
 local removedParents = {}
 
-local PLATFORM_NAME = "eNigma_DeleteAllPlatform"
+local prevAnchored = nil
 
 local function lpChar()
 	local lp = Players.LocalPlayer
 	return lp and lp.Character
+end
+
+local function getHRP()
+	local ch = lpChar()
+	if not ch then return nil end
+	return ch:FindFirstChild("HumanoidRootPart")
+end
+
+local function anchorLocal(state)
+	local hrp = getHRP()
+	if not hrp then return end
+
+	if state then
+		if prevAnchored == nil then
+			prevAnchored = hrp.Anchored
+		end
+		hrp.Anchored = true
+	else
+		if prevAnchored ~= nil then
+			hrp.Anchored = prevAnchored
+			prevAnchored = nil
+		else
+			hrp.Anchored = false
+		end
+	end
 end
 
 local function isAnyPlayerChar(inst)
@@ -52,7 +76,6 @@ local function isProtectedTop(top)
 	if not top or top == Workspace then return true end
 	if top == Workspace.Terrain then return true end
 	if top:IsA("Camera") then return true end
-	if top.Name == PLATFORM_NAME then return true end
 
 	local cam = Workspace.CurrentCamera
 	if cam and (top == cam or top:IsDescendantOf(cam)) then
@@ -80,32 +103,6 @@ local function isMapObject(top)
 	return false
 end
 
-local function createPlatform()
-	if platform and platform.Parent then return end
-
-	platform = Instance.new("Part")
-	platform.Name = PLATFORM_NAME
-	platform.Anchored = true
-	platform.CanCollide = true
-	platform.Locked = true
-	platform.Size = Vector3.new(250, 6, 250)
-	platform.Transparency = 1
-	platform.Parent = Workspace
-end
-
-local function removePlatform()
-	if platform then
-		platform:Destroy()
-		platform = nil
-	end
-end
-
-local function getRootPart()
-	local ch = lpChar()
-	if not ch then return nil end
-	return ch:FindFirstChild("HumanoidRootPart")
-end
-
 local function ensureCamera()
 	local cam = Workspace.CurrentCamera or Workspace:FindFirstChildWhichIsA("Camera")
 	if not cam then
@@ -122,13 +119,6 @@ local function ensureCamera()
 			cam.CameraSubject = hum
 		end
 	end
-end
-
-local function updatePlatform()
-	local hrp = getRootPart()
-	if not hrp then return end
-	if not platform then createPlatform() end
-	platform.CFrame = CFrame.new(hrp.Position.X, hrp.Position.Y - 8, hrp.Position.Z)
 end
 
 local function deleteMap()
@@ -164,16 +154,13 @@ function M.enable()
 	enabled = true
 
 	ensureCamera()
-
-	createPlatform()
-	updatePlatform()
-
+	anchorLocal(true)
 	deleteMap()
 
 	stepConn = RunService.RenderStepped:Connect(function()
 		if not enabled then return end
 		ensureCamera()
-		updatePlatform()
+		anchorLocal(true)
 	end)
 end
 
@@ -187,7 +174,7 @@ function M.disable()
 	end
 
 	restoreMap()
-	removePlatform()
+	anchorLocal(false)
 
 	task.defer(function()
 		ensureCamera()
